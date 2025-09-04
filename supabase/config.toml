@@ -1,0 +1,16 @@
+project_id = "jeutcdxisvkdmcbghhxp"
+
+[functions.create-user-profile]
+verify_jwt = false
+
+[functions.send-proposal-email]
+verify_jwt = false
+
+[functions.generate-proposal-pdf]
+verify_jwt = false
+
+[functions.send-team-invitation]
+verify_jwt = true
+
+[functions.check-email-availability]
+verify_jwt = false
