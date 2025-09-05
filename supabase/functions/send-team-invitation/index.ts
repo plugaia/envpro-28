@@ -7,14 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
-console.log('RESEND_API_KEY available:', resendApiKey ? 'Yes' : 'No');
-
-if (!resendApiKey) {
-  console.error('RESEND_API_KEY not found in environment variables');
-}
-
-const resend = new Resend(resendApiKey)
+const resend = new Resend('re_f826N2Hw_KyPgrkM429K8NNFvUZBdpuGF')
 
 interface SendInvitationRequest {
   email: string;
@@ -114,10 +107,6 @@ serve(async (req) => {
 
     // Send invitation email
     console.log('Attempting to send email with Resend...');
-    
-    if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY is not configured');
-    }
     
     const emailResponse = await resend.emails.send({
       from: `${companyName} <onboarding@resend.dev>`,
