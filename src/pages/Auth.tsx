@@ -130,7 +130,14 @@ const Auth = () => {
           </Tabs>
         </Card>
 
-        <EmailVerificationModal isOpen={showEmailVerification} onClose={() => setShowEmailVerification(false)} email={registeredEmail} />
+        <EmailVerificationModal 
+          isOpen={showEmailVerification} 
+          onClose={() => {
+            setShowEmailVerification(false);
+            navigate('/');
+          }} 
+          email={registeredEmail} 
+        />
       </div>
     </div>;
 };
