@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { type Proposal } from "./ProposalCard";
+import { useUpdateProposal } from "@/hooks/useProposals";
+import { nameSchema, emailSchema, phoneSchema, textSchema } from '@/lib/validation';
 import InputMask from 'react-input-mask';
 
 interface ProposalEditModalProps {
@@ -19,25 +22,31 @@ interface ProposalEditModalProps {
   onUpdate: () => void;
 }
 
+const proposalEditSchema = z.object({
+  clientName: nameSchema,
+  clientEmail: emailSchema,
+  clientPhone: phoneSchema,
+  processNumber: textSchema(0, 50).optional(),
+  organizationName: textSchema(0, 200).optional(),
+  cedibleValue: z.number().positive("O valor deve ser maior que zero"),
+  proposalValue: z.number().positive("O valor deve ser maior que zero"),
+  receiverType: z.enum(['advogado', 'autor', 'precatorio']),
+  status: z.enum(['pendente', 'aprovada', 'rejeitada']),
+  description: textSchema(0, 2000).optional(),
+});
+
+type ProposalEditFormData = z.infer<typeof proposalEditSchema>;
+
 export function ProposalEditModal({ proposal, isOpen, onClose, onUpdate }: ProposalEditModalProps) {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    clientName: proposal.clientName,
-    clientEmail: proposal.clientEmail,
-    clientPhone: proposal.clientPhone,
-    processNumber: proposal.processNumber || "",
-    organizationName: proposal.organizationName || "",
-    cedibleValue: proposal.cedibleValue,
-    proposalValue: proposal.proposalValue,
-    receiverType: proposal.receiverType,
-    status: proposal.status,
-    description: ""
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = useForm<ProposalEditFormData>({
+    resolver: zodResolver(proposalEditSchema),
   });
 
+  const updateProposalMutation = useUpdateProposal();
+
   useEffect(() => {
-    if (isOpen) {
-      setFormData({
+    if (proposal) {
+      reset({
         clientName: proposal.clientName,
         clientEmail: proposal.clientEmail,
         clientPhone: proposal.clientPhone,
@@ -50,67 +59,12 @@ export function ProposalEditModal({ proposal, isOpen, onClose, onUpdate }: Propo
         description: ""
       });
     }
-  }, [proposal, isOpen]);
+  }, [proposal, isOpen, reset]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Update proposal (sensitive data handled separately)
-      const { error: proposalError } = await supabase
-        .from('proposals')
-        .update({
-          client_name: formData.clientName,
-          process_number: formData.processNumber || null,
-          organization_name: formData.organizationName || null,
-          cedible_value: formData.cedibleValue,
-          proposal_value: formData.proposalValue,
-          receiver_type: formData.receiverType,
-          status: formData.status,
-          description: formData.description || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', proposal.id);
-
-      if (proposalError) throw proposalError;
-
-      // Update client contact data in separate table
-      const { error: contactError } = await supabase
-        .from('client_contacts')
-        .upsert({
-          proposal_id: proposal.id,
-          email: formData.clientEmail,
-          phone: formData.clientPhone,
-          updated_at: new Date().toISOString()
-        });
-
-      if (contactError) throw contactError;
-
-      toast({
-        title: "Proposta atualizada!",
-        description: "As alterações foram salvas com sucesso.",
-      });
-
-      onUpdate();
-      onClose();
-    } catch (error) {
-      console.error('Error updating proposal:', error);
-      toast({
-        title: "Erro ao atualizar",
-        description: "Não foi possível salvar as alterações. Tente novamente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleFormSubmit = async (data: ProposalEditFormData) => {
+    await updateProposalMutation.mutateAsync({ id: proposal.id, data });
+    onUpdate();
+    onClose();
   };
 
   return (
@@ -120,153 +74,32 @@ export function ProposalEditModal({ proposal, isOpen, onClose, onUpdate }: Propo
           <DialogTitle>Editar Proposta</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Nome do Cliente *</Label>
-              <Input
-                id="clientName"
-                value={formData.clientName}
-                onChange={(e) => handleInputChange("clientName", e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="clientEmail">Email do Cliente *</Label>
-              <Input
-                id="clientEmail"
-                type="email"
-                value={formData.clientEmail}
-                onChange={(e) => handleInputChange("clientEmail", e.target.value)}
-                required
-              />
-            </div>
+            <div><Label>Nome do Cliente*</Label><Input {...register("clientName")} />{errors.clientName && <p className="text-destructive text-sm">{errors.clientName.message}</p>}</div>
+            <div><Label>Email do Cliente*</Label><Input type="email" {...register("clientEmail")} />{errors.clientEmail && <p className="text-destructive text-sm">{errors.clientEmail.message}</p>}</div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="clientPhone">Telefone do Cliente *</Label>
-            <InputMask
-              mask="+55 (99) 99999-9999"
-              value={formData.clientPhone}
-              onChange={(e) => handleInputChange("clientPhone", e.target.value)}
-              required
-            >
-              {(inputProps: any) => (
-                <Input
-                  {...inputProps}
-                  id="clientPhone"
-                  placeholder="+55 (DD) 99999-9999"
-                  type="tel"
-                />
-              )}
-            </InputMask>
-          </div>
-
+          <div><Label>Telefone do Cliente*</Label><Controller name="clientPhone" control={control} render={({ field }) => <InputMask mask="+55 (99) 99999-9999" value={field.value} onChange={field.onChange}><Input type="tel" /></InputMask>} />{errors.clientPhone && <p className="text-destructive text-sm">{errors.clientPhone.message}</p>}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="processNumber">Número do Processo</Label>
-              <Input
-                id="processNumber"
-                value={formData.processNumber}
-                onChange={(e) => handleInputChange("processNumber", e.target.value)}
-                placeholder="Ex: 0000000-00.0000.0.00.0000"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="organizationName">Órgão/Devedor</Label>
-              <Input
-                id="organizationName"
-                value={formData.organizationName}
-                onChange={(e) => handleInputChange("organizationName", e.target.value)}
-                placeholder="Ex: Prefeitura Municipal"
-              />
-            </div>
+            <div><Label>Número do Processo</Label><Input {...register("processNumber")} />{errors.processNumber && <p className="text-destructive text-sm">{errors.processNumber.message}</p>}</div>
+            <div><Label>Órgão/Devedor</Label><Input {...register("organizationName")} />{errors.organizationName && <p className="text-destructive text-sm">{errors.organizationName.message}</p>}</div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cedibleValue">Valor Cedível (R$) *</Label>
-              <Input
-                id="cedibleValue"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.cedibleValue}
-                onChange={(e) => handleInputChange("cedibleValue", parseFloat(e.target.value) || 0)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="proposalValue">Valor da Proposta (R$) *</Label>
-              <Input
-                id="proposalValue"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.proposalValue}
-                onChange={(e) => handleInputChange("proposalValue", parseFloat(e.target.value) || 0)}
-                required
-              />
-            </div>
+            <div><Label>Valor Cedível (R$)*</Label><Input type="number" step="0.01" {...register("cedibleValue", { valueAsNumber: true })} />{errors.cedibleValue && <p className="text-destructive text-sm">{errors.cedibleValue.message}</p>}</div>
+            <div><Label>Valor da Proposta (R$)*</Label><Input type="number" step="0.01" {...register("proposalValue", { valueAsNumber: true })} />{errors.proposalValue && <p className="text-destructive text-sm">{errors.proposalValue.message}</p>}</div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="receiverType">Tipo de Receptor *</Label>
-              <Select
-                value={formData.receiverType}
-                onValueChange={(value) => handleInputChange("receiverType", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="advogado">Advogado</SelectItem>
-                  <SelectItem value="autor">Autor</SelectItem>
-                  <SelectItem value="precatorio">Precatório</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => handleInputChange("status", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pendente">Pendente</SelectItem>
-                  <SelectItem value="aprovada">Aprovada</SelectItem>
-                  <SelectItem value="rejeitada">Rejeitada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <div><Label>Tipo de Receptor*</Label><Controller name="receiverType" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="advogado">Advogado</SelectItem><SelectItem value="autor">Autor</SelectItem><SelectItem value="precatorio">Precatório</SelectItem></SelectContent></Select>
+            )} />{errors.receiverType && <p className="text-destructive text-sm">{errors.receiverType.message}</p>}</div>
+            <div><Label>Status*</Label><Controller name="status" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="aprovada">Aprovada</SelectItem><SelectItem value="rejeitada">Rejeitada</SelectItem></SelectContent></Select>
+            )} />{errors.status && <p className="text-destructive text-sm">{errors.status.message}</p>}</div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              placeholder="Descrição adicional da proposta..."
-              rows={3}
-            />
-          </div>
-
+          <div><Label>Descrição</Label><Textarea {...register("description")} rows={3} />{errors.description && <p className="text-destructive text-sm">{errors.description.message}</p>}</div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : "Salvar Alterações"}
-            </Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar Alterações"}</Button>
           </div>
         </form>
       </DialogContent>

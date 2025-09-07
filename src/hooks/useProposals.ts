@@ -35,6 +35,83 @@ export const useFetchProposals = () => {
   });
 };
 
+// Data type for the update mutation payload
+interface UpdateProposalPayload {
+  id: string;
+  data: any; // Using 'any' for flexibility with form data
+}
+
+// Hook for updating a proposal with optimistic update
+export const useUpdateProposal = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: UpdateProposalPayload) => {
+      const { error: proposalError } = await supabase
+        .from('proposals')
+        .update({
+          client_name: data.clientName,
+          process_number: data.processNumber || null,
+          organization_name: data.organizationName || null,
+          cedible_value: data.cedibleValue,
+          proposal_value: data.proposalValue,
+          receiver_type: data.receiverType,
+          status: data.status,
+          description: data.description || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (proposalError) throw new Error(`Proposal update failed: ${proposalError.message}`);
+
+      const { error: contactError } = await supabase
+        .from('client_contacts')
+        .update({
+          email: data.clientEmail,
+          phone: data.clientPhone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('proposal_id', id);
+      if (contactError) throw new Error(`Contact update failed: ${contactError.message}`);
+    },
+    onMutate: async (updatedProposal) => {
+      await queryClient.cancelQueries({ queryKey: ['proposals'] });
+      const previousProposals = queryClient.getQueryData<Proposal[]>(['proposals']);
+
+      queryClient.setQueryData<Proposal[]>(['proposals'], (old) =>
+        old
+          ? old.map((proposal) =>
+              proposal.id === updatedProposal.id
+                ? { ...proposal, ...updatedProposal.data, clientName: updatedProposal.data.clientName, clientEmail: updatedProposal.data.clientEmail, clientPhone: updatedProposal.data.clientPhone }
+                : proposal
+            )
+          : []
+      );
+      
+      toast({
+        title: "Proposta atualizada!",
+        description: "As alterações foram salvas com sucesso.",
+      });
+
+      return { previousProposals };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousProposals) {
+        queryClient.setQueryData(['proposals'], context.previousProposals);
+      }
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível salvar as alterações. A lista foi restaurada.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['proposals'] });
+    },
+  });
+};
+
+
 // Hook for deleting a proposal with optimistic update
 export const useDeleteProposal = () => {
   const queryClient = useQueryClient();
