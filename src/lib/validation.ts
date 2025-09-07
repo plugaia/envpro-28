@@ -13,7 +13,7 @@ export const sanitizeInput = (input: string): string => {
 // Phone number validation and sanitization
 export const phoneSchema = z.string()
   .min(10, 'Telefone deve ter pelo menos 10 dígitos')
-  .max(15, 'Telefone deve ter no máximo 15 dígitos')
+  .max(20, 'Telefone deve ter no máximo 20 caracteres') // Increased max length
   .regex(/^[\d\s\-\(\)\+]+$/, 'Telefone contém caracteres inválidos')
   .transform(sanitizeInput);
 
