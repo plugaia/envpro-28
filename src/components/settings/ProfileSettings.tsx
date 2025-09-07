@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Save, Camera, Upload } from "lucide-react";
 import { profileUpdateSchema } from "@/lib/validation";
+import InputMask from 'react-input-mask';
 
 export function ProfileSettings() {
   const { toast } = useToast();
@@ -243,7 +246,7 @@ export function ProfileSettings() {
               disabled={avatarLoading}
               className="gap-2"
             >
-              <Upload className="h-4 w-4" />
+              <Upload className="h-4 w-4 mr-2" />
               {avatarLoading ? "Enviando..." : "Alterar Foto"}
             </Button>
             <p className="text-xs text-muted-foreground mt-2">
@@ -282,13 +285,20 @@ export function ProfileSettings() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">WhatsApp</Label>
-          <Input 
-            id="phone" 
-            placeholder="(11) 99999-9999" 
+          <InputMask
+            mask="+55 (99) 99999-9999"
             value={profile.phone}
             onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
-            type="tel"
-          />
+          >
+            {(inputProps: any) => (
+              <Input
+                {...inputProps}
+                id="phone" 
+                placeholder="+55 (DD) 99999-9999" 
+                type="tel"
+              />
+            )}
+          </InputMask>
           <p className="text-sm text-muted-foreground">
             Número que aparecerá nas propostas PDF para contato
           </p>

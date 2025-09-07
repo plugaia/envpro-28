@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { type Proposal } from "./ProposalCard";
+import InputMask from 'react-input-mask';
 
 interface ProposalEditModalProps {
   proposal: Proposal;
@@ -143,13 +146,21 @@ export function ProposalEditModal({ proposal, isOpen, onClose, onUpdate }: Propo
 
           <div className="space-y-2">
             <Label htmlFor="clientPhone">Telefone do Cliente *</Label>
-            <Input
-              id="clientPhone"
+            <InputMask
+              mask="+55 (99) 99999-9999"
               value={formData.clientPhone}
               onChange={(e) => handleInputChange("clientPhone", e.target.value)}
               required
-              placeholder="+55 67 99999-9999"
-            />
+            >
+              {(inputProps: any) => (
+                <Input
+                  {...inputProps}
+                  id="clientPhone"
+                  placeholder="+55 (DD) 99999-9999"
+                  type="tel"
+                />
+              )}
+            </InputMask>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

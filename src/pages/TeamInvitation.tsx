@@ -191,7 +191,7 @@ export default function TeamInvitation() {
             <div className="space-y-2">
               <Label htmlFor="whatsapp">Número do WhatsApp</Label>
               <InputMask
-                mask="(99) 99999-9999"
+                mask="+55 (99) 99999-9999"
                 value={formData.whatsappNumber}
                 onChange={(e) => setFormData(prev => ({ ...prev, whatsappNumber: e.target.value }))}
               >
@@ -199,7 +199,8 @@ export default function TeamInvitation() {
                   <Input
                     {...inputProps}
                     id="whatsapp"
-                    placeholder="(00) 00000-0000"
+                    placeholder="+55 (DD) 99999-9999"
+                    type="tel"
                     required
                   />
                 )}

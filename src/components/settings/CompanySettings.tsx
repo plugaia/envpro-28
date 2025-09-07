@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Building2, Save, Upload, X, ImageIcon } from "lucide-react";
 import { companyUpdateSchema } from "@/lib/validation";
+import InputMask from 'react-input-mask';
 
 export function CompanySettings() {
   const { toast } = useToast();
@@ -373,12 +376,20 @@ export function CompanySettings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="responsiblePhone">Telefone Responsável</Label>
-            <Input 
-              id="responsiblePhone" 
-              placeholder="+55 67 99999-9999" 
+            <InputMask
+              mask="+55 (99) 99999-9999"
               value={company.responsible_phone}
               onChange={(e) => setCompany(prev => ({ ...prev, responsible_phone: e.target.value }))}
-            />
+            >
+              {(inputProps: any) => (
+                <Input
+                  {...inputProps}
+                  id="responsiblePhone" 
+                  placeholder="+55 (DD) 99999-9999" 
+                  type="tel"
+                />
+              )}
+            </InputMask>
           </div>
           <div className="space-y-2">
             <Label htmlFor="responsibleEmail">Email Responsável</Label>

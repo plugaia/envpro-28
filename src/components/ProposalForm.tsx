@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { proposalLimiter, checkRateLimit, formatRemainingTime } from '@/lib/rateLimiter';
 import { nameSchema, emailSchema, phoneSchema, numericSchema, textSchema } from '@/lib/validation';
+import InputMask from 'react-input-mask';
 
 interface Client {
   id: string;
@@ -405,13 +408,21 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
                   
                   <div className="space-y-2">
                     <Label htmlFor="clientPhone">Telefone/WhatsApp*</Label>
-                    <Input
-                      id="clientPhone"
-                      placeholder="+55 67 99999-9999"
+                    <InputMask
+                      mask="+55 (99) 99999-9999"
                       value={formData.clientPhone}
                       onChange={(e) => setFormData(prev => ({ ...prev, clientPhone: e.target.value }))}
                       required
-                    />
+                    >
+                      {(inputProps: any) => (
+                        <Input
+                          {...inputProps}
+                          id="clientPhone"
+                          placeholder="+55 (DD) 99999-9999"
+                          type="tel"
+                        />
+                      )}
+                    </InputMask>
                   </div>
                 </div>
               )}

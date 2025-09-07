@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import InputMask from 'react-input-mask';
 
 interface Client {
   id: string;
@@ -422,13 +423,21 @@ const Clientes = () => {
                         
                         <div className="space-y-2">
                           <Label htmlFor="whatsapp">WhatsApp*</Label>
-                          <Input
-                            id="whatsapp"
-                            placeholder="+55 67 99999-9999"
+                          <InputMask
+                            mask="+55 (99) 99999-9999"
                             value={newClientData.whatsapp}
                             onChange={(e) => setNewClientData(prev => ({ ...prev, whatsapp: e.target.value }))}
                             required
-                          />
+                          >
+                            {(inputProps: any) => (
+                              <Input
+                                {...inputProps}
+                                id="whatsapp"
+                                placeholder="+55 (DD) 99999-9999"
+                                type="tel"
+                              />
+                            )}
+                          </InputMask>
                         </div>
                         
                         <div className="flex gap-3">
@@ -513,13 +522,21 @@ const Clientes = () => {
                         
                         <div className="space-y-2">
                           <Label htmlFor="editWhatsapp">WhatsApp*</Label>
-                          <Input
-                            id="editWhatsapp"
-                            placeholder="+55 67 99999-9999"
+                          <InputMask
+                            mask="+55 (99) 99999-9999"
                             value={editClientData.whatsapp}
                             onChange={(e) => setEditClientData(prev => ({ ...prev, whatsapp: e.target.value }))}
                             required
-                          />
+                          >
+                            {(inputProps: any) => (
+                              <Input
+                                {...inputProps}
+                                id="editWhatsapp"
+                                placeholder="+55 (DD) 99999-9999"
+                                type="tel"
+                              />
+                            )}
+                          </InputMask>
                         </div>
                         
                         <div className="flex gap-3">
