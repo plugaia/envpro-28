@@ -23,6 +23,7 @@ const ProposalView = () => {
   const [verificationError, setVerificationError] = useState("");
   const [lawyerInfo, setLawyerInfo] = useState<any>(null);
   const [showNotFound, setShowNotFound] = useState(false);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null); // Novo estado para o logo da empresa
   
   // Check if this is a token-based access (URL contains token parameter)
   const urlParams = new URLSearchParams(window.location.search);
@@ -35,68 +36,42 @@ const ProposalView = () => {
     if (proposalId) {
       fetchProposal();
     }
-  }, [proposalId]);
+  }, [proposalId, user, accessToken]); // Adicionado accessToken às dependências
 
   const fetchProposal = async () => {
     try {
-      console.log('Fetching proposal with ID:', proposalId);
-      console.log('Access token:', accessToken);
-      
-      let data, error;
-      
+      setLoading(true);
+      let proposalDataFromRpc: any = null;
+      let currentCompanyId: string | null = null;
+
       if (accessToken) {
-        // Use token-based access for public links
+        // Public access via token
         const { data: tokenData, error: tokenError } = await supabase
           .rpc('get_proposal_by_token', { access_token: accessToken });
           
         if (tokenError) throw tokenError;
         
         if (tokenData && tokenData.length > 0) {
-          data = {
-            ...tokenData[0],
-            // Token-based access doesn't expose contact info for security
-            client_phone: null,
-            client_email: null,
-            companies: { name: tokenData[0].company_name },
-            // For token access, we'll handle verification differently
-            requiresVerification: true
-          };
-          // Token is valid, but user still needs to verify phone digits
+          proposalDataFromRpc = tokenData[0];
+          // Para acesso via token, o RPC 'get_proposal_by_token' atualmente não retorna company_id ou logo_url.
+          // Se você deseja que o logo apareça para links públicos, a função RPC no Supabase precisará ser atualizada
+          // para incluir 'company_id' e 'logo_url' em seu retorno.
+          // Por enquanto, o logo só aparecerá para usuários autenticados.
           setIsVerified(false);
           setShowVerification(true);
         } else {
           throw new Error('Token inválido ou expirado');
         }
       } else if (user) {
-        // Authenticated user access - use secure function with role-based access
+        // Authenticated user access
         const { data: secureData, error: secureError } = await supabase
           .rpc('get_proposal_by_id', { p_proposal_id: proposalId });
           
         if (secureError) throw secureError;
         
         if (secureData && secureData.length > 0) {
-          const proposalData = secureData[0];
-          data = {
-            id: proposalData.id,
-            client_name: proposalData.client_name,
-            client_email: proposalData.client_email, // Will be masked for non-admins
-            client_phone: proposalData.client_phone, // Will be masked for non-admins
-            process_number: proposalData.process_number,
-            organization_name: proposalData.organization_name,
-            cedible_value: proposalData.cedible_value,
-            proposal_value: proposalData.proposal_value,
-            valid_until: proposalData.valid_until,
-            receiver_type: proposalData.receiver_type,
-            status: proposalData.status,
-            description: proposalData.description,
-            assignee: proposalData.assignee,
-            created_by: proposalData.created_by,
-            company_id: proposalData.company_id,
-            created_at: proposalData.created_at,
-            updated_at: proposalData.updated_at,
-            can_view_client_details: proposalData.can_view_client_details,
-            companies: { name: 'Empresa' } // Company name not needed in this view
-          };
+          proposalDataFromRpc = secureData[0];
+          currentCompanyId = proposalDataFromRpc.company_id;
         } else {
           throw new Error('Proposta não encontrada ou sem permissão de acesso');
         }
@@ -104,16 +79,42 @@ const ProposalView = () => {
         throw new Error('Acesso não autorizado');
       }
 
-      console.log('Proposal data:', data);
-      console.log('Proposal error:', error);
+      if (!proposalDataFromRpc) {
+        throw new Error('No proposal data found');
+      }
 
-      if (error) throw error;
+      // Fetch company details (name and logo_url) if companyId is available
+      let companyDetails = { name: 'Empresa', logo_url: null };
+      if (currentCompanyId) {
+        const { data: companyData, error: companyError } = await supabase
+          .from('companies')
+          .select('name, logo_url')
+          .eq('id', currentCompanyId)
+          .single();
+
+        if (companyError) {
+          console.warn('Error fetching company details:', companyError);
+        } else if (companyData) {
+          companyDetails = { name: companyData.name, logo_url: companyData.logo_url };
+        }
+      } else if (proposalDataFromRpc.company_name) { // Fallback for token access if company_id not available
+        companyDetails.name = proposalDataFromRpc.company_name;
+      }
+
+      const finalProposal = {
+        ...proposalDataFromRpc,
+        companies: companyDetails, // Attach company details
+        client_email: proposalDataFromRpc.client_email || null,
+        client_phone: proposalDataFromRpc.client_phone || null,
+        can_view_client_details: proposalDataFromRpc.can_view_client_details || false,
+      };
       
-      setProposal(data);
-      setStatus(data.status as 'pendente' | 'aprovada' | 'rejeitada');
+      setProposal(finalProposal);
+      setStatus(finalProposal.status as 'pendente' | 'aprovada' | 'rejeitada');
+      setCompanyLogoUrl(companyDetails.logo_url); // Define o URL do logo no estado
       
       // Fetch lawyer information for all proposals (both token and authenticated access)
-      await fetchLawyerInfo();
+      await fetchLawyerInfo(finalProposal.created_by); // Pass created_by to fetch lawyer info
       
     } catch (error) {
       console.error('Error fetching proposal:', error);
@@ -128,7 +129,8 @@ const ProposalView = () => {
     }
   };
 
-  const fetchLawyerInfo = async () => {
+  const fetchLawyerInfo = async (createdByUserId: string) => {
+    if (!createdByUserId) return;
     try {
       // Use RPC function to get lawyer information
       const { data: lawyerData, error: lawyerError } = await supabase
@@ -399,8 +401,12 @@ const ProposalView = () => {
             {/* Proposal Approved */}
             <div className="flex items-center justify-between bg-muted rounded-lg p-6 mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16">
-                  <img src="/placeholder.svg" alt="Dinheiro" className="w-full h-full object-contain" />
+                <div className="w-16 h-16 flex items-center justify-center">
+                  {companyLogoUrl ? (
+                    <img src={companyLogoUrl} alt="Logo da empresa" className="w-full h-full object-contain" />
+                  ) : (
+                    <img src="/placeholder.svg" alt="Dinheiro" className="w-full h-full object-contain" />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-xl mb-1">Proposta Aprovada</h3>
