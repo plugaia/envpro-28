@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Building2, Save, Upload, X, ImageIcon } from "lucide-react";
 import { companyUpdateSchema } from "@/lib/validation";
 import InputMask from 'react-input-mask';
 
-type CompanyFormData = Zod.infer<typeof companyUpdateSchema>;
+type CompanyFormData = z.infer<typeof companyUpdateSchema>;
 
 export function CompanySettings() {
   const { user } = useAuth();
