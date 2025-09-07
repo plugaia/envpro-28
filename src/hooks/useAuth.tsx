@@ -3,7 +3,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { authLimiter, checkRateLimit, formatRemainingTime } from '@/lib/rateLimiter';
-import { userRegistrationSchema, emailSchema, passwordSchema } from '@/lib/validation';
+import { nameSchema, emailSchema, passwordSchema, cnpjSchema } from '@/lib/validation';
 
 interface AuthContextType {
   user: User | null;
@@ -85,18 +85,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       emailSchema.parse(email);
       passwordSchema.parse(password);
-      // Basic validation for required fields
-      if (!userData.firstName || !userData.lastName || !userData.cnpj) {
-        throw new Error('Todos os campos são obrigatórios');
+      nameSchema.parse(userData.firstName);
+      nameSchema.parse(userData.lastName);
+      // CNPJ is only required if it's not an empty string (i.e., for new company registration)
+      if (userData.cnpj) {
+        cnpjSchema.parse(userData.cnpj);
       }
     } catch (validationError: any) {
       return {
         error: {
-          message: `Dados inválidos: ${validationError.message || 'Verifique os campos preenchidos'}`
+          message: `Dados inválidos: ${validationError.errors?.[0]?.message || 'Verifique os campos preenchidos'}`
         } as AuthError
       };
     }
-    const redirectUrl = `http://localhost:8080/`; // Alterado para localhost
+    const redirectUrl = `http://localhost:8080/`;
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -118,40 +120,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         variant: "destructive",
       });
     } else if (data.user) {
-      // Create user profile and company
-      try {
-        const { error: profileError } = await supabase.functions.invoke('create-user-profile', {
-          body: {
-            userId: data.user.id,
-            userData: {
-              firstName: userData.firstName,
-              lastName: userData.lastName,
-              cnpj: userData.cnpj,
-              responsibleEmail: email,
+      // Only call create-user-profile if CNPJ is provided (new company registration)
+      // For team invitations (empty CNPJ), the profile is created by accept_team_invitation RPC.
+      if (userData.cnpj) { // Check if CNPJ is provided
+        try {
+          const { error: profileError } = await supabase.functions.invoke('create-user-profile', {
+            body: {
+              userId: data.user.id,
+              userData: {
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                cnpj: userData.cnpj,
+                responsibleEmail: email,
+              }
             }
-          }
-        });
+          });
 
-        if (profileError) {
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            toast({
+              title: "Erro no cadastro",
+              description: "Falha ao criar perfil do usuário. Tente novamente.",
+              variant: "destructive",
+            });
+            return { error: profileError as AuthError };
+          }
+        } catch (profileError) {
           console.error('Profile creation error:', profileError);
           toast({
             title: "Erro no cadastro",
             description: "Falha ao criar perfil do usuário. Tente novamente.",
             variant: "destructive",
           });
-          return { error };
-        } else {
-          // Return success to trigger modal
-          return { error: null };
+          return { error: profileError as AuthError };
         }
-      } catch (profileError) {
-        console.error('Profile creation error:', profileError);
-        toast({
-          title: "Erro no cadastro",
-          description: "Falha ao criar perfil do usuário. Tente novamente.",
-          variant: "destructive",
-        });
       }
+      return { error: null };
     }
 
     return { error };

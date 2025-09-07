@@ -111,7 +111,8 @@ export default function TeamInvitation() {
       const { error: acceptError } = await supabase
         .rpc('accept_team_invitation', {
           p_invitation_token: token,
-          p_user_id: user.id
+          p_user_id: user.id,
+          p_phone: formData.whatsappNumber // Pass the phone number from the form
         });
 
       if (acceptError) throw acceptError;
@@ -123,7 +124,7 @@ export default function TeamInvitation() {
 
       // Redirect to main app
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
       toast({
         title: "Erro no cadastro",
