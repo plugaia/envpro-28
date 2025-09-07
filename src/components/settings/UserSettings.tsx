@@ -114,87 +114,41 @@ export function UserSettings() {
     try {
       setInviteLoading(true);
       
-      console.log('Starting invitation process...');
-      console.log('Current user:', currentUser);
-      console.log('User ID:', currentUser?.id);
-      
-      // Check if user is authenticated
       if (!currentUser || !currentUser.id) {
         throw new Error('Usuário não autenticado');
       }
 
-      // Validate email availability using Supabase function
-      const { data: emailCheck, error: emailCheckError } = await supabase.functions.invoke('check-email-availability', {
-        body: { email: inviteForm.email }
-      });
-
-      if (emailCheckError) {
-        console.error('Email check error:', emailCheckError);
-        throw new Error('Erro ao verificar disponibilidade do email');
-      }
-
-      if (!emailCheck.available) {
-        toast({
-          title: "Email já cadastrado",
-          description: "Este email já está sendo usado por outro usuário.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Test admin status using the correct function
-      const { data: adminCheck, error: adminError } = await supabase
-        .rpc('is_admin', { user_id: currentUser?.id });
-      
-      console.log('Admin check result:', { adminCheck, adminError });
-      
-      // Also check profile directly
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('user_id', currentUser.id)
-        .single();
-        
-      console.log('Profile check:', { profileData, profileError });
-      
-      if (adminError) {
-        console.error('Admin check error:', adminError);
-        throw new Error('Erro ao verificar permissões de administrador');
-      }
-      
-      if (!adminCheck) {
-        throw new Error('Você precisa ter permissões de administrador para enviar convites.');
-      }
-
-      // Create team invitation
-      const { data, error } = await supabase
+      // Create team invitation and get the token
+      const { data: invitationData, error: createError } = await supabase
         .rpc('create_team_invitation', {
           p_email: inviteForm.email,
           p_first_name: inviteForm.firstName,
           p_last_name: inviteForm.lastName,
           p_whatsapp_number: null
         });
-        
-      console.log('RPC result:', { data, error });
 
-      if (error) throw error;
+      if (createError) throw createError;
+      
+      const invitationToken = invitationData?.[0]?.invitation_token;
+      if (!invitationToken) {
+        throw new Error("Não foi possível gerar o token de convite.");
+      }
 
       // Send invitation email via edge function
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-team-invitation', {
+      const { error: emailError } = await supabase.functions.invoke('send-team-invitation', {
         body: {
           email: inviteForm.email,
           firstName: inviteForm.firstName,
-          lastName: inviteForm.lastName
+          lastName: inviteForm.lastName,
+          invitationToken: invitationToken
         }
       });
-
-      console.log('Email result:', { emailResult, emailError });
 
       if (emailError) {
         console.error('Email error:', emailError);
         toast({
           title: "Aviso",
-          description: "Convite criado mas houve erro ao enviar email. Verifique se a chave RESEND_API_KEY está configurada.",
+          description: "Convite criado mas houve erro ao enviar email. Verifique as configurações.",
           variant: "destructive"
         });
         return;
