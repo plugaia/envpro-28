@@ -42,6 +42,7 @@ const Clientes = () => {
     email: "",
     whatsapp: "",
   });
+  const [newClientsThisMonth, setNewClientsThisMonth] = useState(0); // Novo estado para clientes novos este mês
 
   useEffect(() => {
     if (user) {
@@ -80,7 +81,22 @@ const Clientes = () => {
         }
       });
 
-      setClients(Array.from(uniqueClients.values()));
+      const clientsArray = Array.from(uniqueClients.values());
+      setClients(clientsArray);
+
+      // Calculate new clients this month
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      
+      let countNewClients = 0;
+      clientsArray.forEach((client: Client) => {
+        if (client.createdAt.getMonth() === currentMonth && client.createdAt.getFullYear() === currentYear) {
+          countNewClients++;
+        }
+      });
+      setNewClientsThisMonth(countNewClients);
+
     } catch (error) {
       console.error('Error fetching clients:', error);
       toast({
@@ -239,7 +255,7 @@ const Clientes = () => {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Novos este mês</p>
-                        <p className="text-2xl font-bold text-success">3</p>
+                        <p className="text-2xl font-bold text-success">{newClientsThisMonth}</p>
                       </div>
                       <div className="p-2 rounded-full bg-success/10">
                         <Plus className="w-6 h-6 text-success" />
@@ -253,7 +269,7 @@ const Clientes = () => {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Com WhatsApp</p>
-                        <p className="text-2xl font-bold text-warning">{clients.length}</p>
+                        <p className="text-2xl font-bold text-warning">{clients.filter(c => c.whatsapp).length}</p>
                       </div>
                       <div className="p-2 rounded-full bg-warning/10">
                         <Users className="w-6 h-6 text-warning" />
