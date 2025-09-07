@@ -95,11 +95,11 @@ export function CompanySettings() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) { // Changed from 5MB to 10MB
       toast({
         title: "Erro",
-        description: "O arquivo deve ter no máximo 5MB.",
+        description: "O arquivo deve ter no máximo 10MB.", // Updated message
         variant: "destructive",
       });
       return;
@@ -343,7 +343,7 @@ export function CompanySettings() {
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                Formatos aceitos: JPG, PNG, GIF. Máximo 5MB.
+                Formatos aceitos: JPG, PNG, GIF. Máximo 10MB.
               </p>
             </div>
           </div>
