@@ -7,6 +7,8 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom"; // Importar useNavigate
+import { useUserRole } from "@/hooks/useUserRole"; // Importar useUserRole
 
 interface ProfilePopoverProps {
   children: React.ReactNode;
@@ -15,6 +17,12 @@ interface ProfilePopoverProps {
 
 export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
   const { user } = useAuth();
+  const navigate = useNavigate(); // Inicializar useNavigate
+  const { userRole, loading: roleLoading } = useUserRole(); // Obter o cargo do usuário
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
 
   return (
     <Popover>
@@ -35,7 +43,11 @@ export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
                 }
               </p>
               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              <p className="text-xs text-muted-foreground">Administrador</p>
+              {!roleLoading && userRole && (
+                <p className="text-xs text-muted-foreground">
+                  {userRole === 'admin' ? 'Administrador' : 'Colaborador'}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -46,7 +58,7 @@ export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
           <Button 
             variant="ghost" 
             className="w-full justify-start text-sm h-8"
-            onClick={() => window.location.href = '/configuracoes?tab=profile'}
+            onClick={() => handleNavigate('/configuracoes?tab=profile')}
           >
             <User className="w-4 h-4 mr-2" />
             Meu Perfil
@@ -54,7 +66,7 @@ export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
           <Button 
             variant="ghost" 
             className="w-full justify-start text-sm h-8"
-            onClick={() => window.location.href = '/configuracoes'}
+            onClick={() => handleNavigate('/configuracoes')}
           >
             <Settings className="w-4 h-4 mr-2" />
             Configurações
@@ -62,7 +74,7 @@ export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
           <Button 
             variant="ghost" 
             className="w-full justify-start text-sm h-8"
-            onClick={() => window.location.href = '/configuracoes?tab=security'}
+            onClick={() => handleNavigate('/configuracoes?tab=security')}
           >
             <Shield className="w-4 h-4 mr-2" />
             Privacidade
