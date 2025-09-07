@@ -6,42 +6,38 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, ArrowLeft, Building2, Mail, Lock } from 'lucide-react';
+import { Loader2, ArrowLeft, Building2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { StepForm, RegisterFormData } from '@/components/StepForm';
 import { EmailVerificationModal } from '@/components/EmailVerificationModal';
+
 const Auth = () => {
   const navigate = useNavigate();
-  const {
-    signIn,
-    signUp,
-    loading
-  } = useAuth();
+  const { signIn, signUp, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
   });
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const {
-      error
-    } = await signIn(loginForm.email, loginForm.password);
+    const { error } = await signIn(loginForm.email, loginForm.password);
     if (!error) {
       navigate('/');
     }
     setIsLoading(false);
   };
+
   const handleRegister = async (data: RegisterFormData) => {
     if (data.password !== data.confirmPassword) {
       return;
     }
     setIsLoading(true);
-    const {
-      error
-    } = await signUp(data.email, data.password, {
+    const { error } = await signUp(data.email, data.password, {
       firstName: data.firstName,
       lastName: data.lastName,
       cnpj: data.cnpj
@@ -52,12 +48,17 @@ const Auth = () => {
       setShowEmailVerification(true);
     }
   };
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background">
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>;
+      </div>
+    );
   }
-  return <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors mb-4">
@@ -97,10 +98,17 @@ const Auth = () => {
                       <Mail className="h-4 w-4" />
                       Email
                     </Label>
-                    <Input id="login-email" type="email" placeholder="seu@email.com" value={loginForm.email} onChange={e => setLoginForm(prev => ({
-                    ...prev,
-                    email: e.target.value
-                  }))} required />
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={loginForm.email}
+                      onChange={(e) => setLoginForm(prev => ({
+                        ...prev,
+                        email: e.target.value
+                      }))}
+                      required
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -108,17 +116,40 @@ const Auth = () => {
                       <Lock className="h-4 w-4" />
                       Senha
                     </Label>
-                    <Input id="login-password" type="password" placeholder="Sua senha" value={loginForm.password} onChange={e => setLoginForm(prev => ({
-                    ...prev,
-                    password: e.target.value
-                  }))} required />
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Sua senha"
+                        value={loginForm.password}
+                        onChange={(e) => setLoginForm(prev => ({
+                          ...prev,
+                          password: e.target.value
+                        }))}
+                        required
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
 
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? <>
+                    {isLoading ? (
+                      <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Entrando...
-                      </> : 'Entrar'}
+                      </>
+                    ) : (
+                      'Entrar'
+                    )}
                   </Button>
                 </form>
               </TabsContent>
@@ -139,6 +170,8 @@ const Auth = () => {
           email={registeredEmail} 
         />
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Auth;
