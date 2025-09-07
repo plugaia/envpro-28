@@ -23,7 +23,7 @@ const ProposalView = () => {
   const [verificationError, setVerificationError] = useState("");
   const [lawyerInfo, setLawyerInfo] = useState<any>(null);
   const [showNotFound, setShowNotFound] = useState(false);
-  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null); // Novo estado para o logo da empresa
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
   
   // Check if this is a token-based access (URL contains token parameter)
   const urlParams = new URLSearchParams(window.location.search);
@@ -36,7 +36,7 @@ const ProposalView = () => {
     if (proposalId) {
       fetchProposal();
     }
-  }, [proposalId, user, accessToken]); // Adicionado accessToken às dependências
+  }, [proposalId, user, accessToken]);
 
   const fetchProposal = async () => {
     try {
@@ -45,7 +45,7 @@ const ProposalView = () => {
       let currentCompanyId: string | null = null;
 
       if (accessToken) {
-        // Public access via token
+        // Public access via token - now includes company logo
         const { data: tokenData, error: tokenError } = await supabase
           .rpc('get_proposal_by_token', { access_token: accessToken });
           
@@ -53,10 +53,8 @@ const ProposalView = () => {
         
         if (tokenData && tokenData.length > 0) {
           proposalDataFromRpc = tokenData[0];
-          // Para acesso via token, o RPC 'get_proposal_by_token' atualmente não retorna company_id ou logo_url.
-          // Se você deseja que o logo apareça para links públicos, a função RPC no Supabase precisará ser atualizada
-          // para incluir 'company_id' e 'logo_url' em seu retorno.
-          // Por enquanto, o logo só aparecerá para usuários autenticados.
+          // Now we have company_logo_url from the RPC function
+          setCompanyLogoUrl(proposalDataFromRpc.company_logo_url);
           setIsVerified(false);
           setShowVerification(true);
         } else {
@@ -83,8 +81,12 @@ const ProposalView = () => {
         throw new Error('No proposal data found');
       }
 
-      // Fetch company details (name and logo_url) if companyId is available
-      let companyDetails = { name: 'Empresa', logo_url: null };
+      // Fetch company details for authenticated users
+      let companyDetails = { 
+        name: proposalDataFromRpc.company_name || 'Empresa', 
+        logo_url: proposalDataFromRpc.company_logo_url || null 
+      };
+      
       if (currentCompanyId) {
         const { data: companyData, error: companyError } = await supabase
           .from('companies')
@@ -96,14 +98,13 @@ const ProposalView = () => {
           console.warn('Error fetching company details:', companyError);
         } else if (companyData) {
           companyDetails = { name: companyData.name, logo_url: companyData.logo_url };
+          setCompanyLogoUrl(companyData.logo_url);
         }
-      } else if (proposalDataFromRpc.company_name) { // Fallback for token access if company_id not available
-        companyDetails.name = proposalDataFromRpc.company_name;
       }
 
       const finalProposal = {
         ...proposalDataFromRpc,
-        companies: companyDetails, // Attach company details
+        companies: companyDetails,
         client_email: proposalDataFromRpc.client_email || null,
         client_phone: proposalDataFromRpc.client_phone || null,
         can_view_client_details: proposalDataFromRpc.can_view_client_details || false,
@@ -111,10 +112,9 @@ const ProposalView = () => {
       
       setProposal(finalProposal);
       setStatus(finalProposal.status as 'pendente' | 'aprovada' | 'rejeitada');
-      setCompanyLogoUrl(companyDetails.logo_url); // Define o URL do logo no estado
       
-      // Fetch lawyer information for all proposals (both token and authenticated access)
-      await fetchLawyerInfo(finalProposal.created_by); // Pass created_by to fetch lawyer info
+      // Fetch lawyer information for all proposals
+      await fetchLawyerInfo(finalProposal.created_by);
       
     } catch (error) {
       console.error('Error fetching proposal:', error);
@@ -179,6 +179,34 @@ const ProposalView = () => {
     } catch (error) {
       console.error('Error verifying phone digits:', error);
       setVerificationError("Erro na verificação. Tente novamente.");
+    }
+  };
+
+  const createNotificationForLawyer = async (newStatus: 'aprovada' | 'rejeitada') => {
+    if (!proposal?.created_by) return;
+
+    try {
+      const statusText = newStatus === 'aprovada' ? 'aprovada' : 'rejeitada';
+      const { error } = await supabase.functions.invoke('create-notification', {
+        body: {
+          user_id: proposal.created_by,
+          title: `Proposta ${statusText}`,
+          message: `A proposta de ${proposal.client_name} foi ${statusText} pelo cliente.`,
+          type: 'proposal',
+          data: { 
+            proposal_id: proposalId,
+            client_name: proposal.client_name,
+            status: newStatus,
+            proposal_value: proposal.proposal_value
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Error creating notification:', error);
+      }
+    } catch (error) {
+      console.error('Error sending notification to lawyer:', error);
     }
   };
   
@@ -251,30 +279,38 @@ const ProposalView = () => {
   };
 
   const handleAccept = async () => {
-    if (!user) {
-      // Update status locally for non-authenticated users
-      setStatus('aprovada');
-      toast({
-        title: "Proposta Aprovada!",
-        description: "Sua proposta foi aprovada com sucesso. Em breve entraremos em contato.",
-      });
-      return;
-    }
-
     try {
-      const { error } = await supabase
-        .from('proposals')
-        .update({ status: 'aprovada' })
-        .eq('id', proposalId);
+      if (user) {
+        // Authenticated user - update in database
+        const { error } = await supabase
+          .from('proposals')
+          .update({ status: 'aprovada' })
+          .eq('id', proposalId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else if (accessToken) {
+        // Public user with token - use public function
+        const { data: success, error } = await supabase
+          .rpc('update_proposal_status_by_token', { 
+            access_token: accessToken, 
+            new_status: 'aprovada' 
+          });
+
+        if (error) throw error;
+        if (!success) throw new Error('Failed to update proposal status');
+      }
 
       setStatus('aprovada');
+      
+      // Create notification for the lawyer who created the proposal
+      await createNotificationForLawyer('aprovada');
+      
       toast({
         title: "Proposta Aprovada!",
         description: "Sua proposta foi aprovada com sucesso. Em breve entraremos em contato.",
       });
     } catch (error) {
+      console.error('Error accepting proposal:', error);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar a proposta.",
@@ -284,30 +320,38 @@ const ProposalView = () => {
   };
 
   const handleReject = async () => {
-    if (!user) {
-      // Update status locally for non-authenticated users
-      setStatus('rejeitada');
-      toast({
-        title: "Proposta Rejeitada",
-        description: "Sua resposta foi registrada. Obrigado pelo seu tempo.",
-      });
-      return;
-    }
-
     try {
-      const { error } = await supabase
-        .from('proposals')
-        .update({ status: 'rejeitada' })
-        .eq('id', proposalId);
+      if (user) {
+        // Authenticated user - update in database
+        const { error } = await supabase
+          .from('proposals')
+          .update({ status: 'rejeitada' })
+          .eq('id', proposalId);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else if (accessToken) {
+        // Public user with token - use public function
+        const { data: success, error } = await supabase
+          .rpc('update_proposal_status_by_token', { 
+            access_token: accessToken, 
+            new_status: 'rejeitada' 
+          });
+
+        if (error) throw error;
+        if (!success) throw new Error('Failed to update proposal status');
+      }
 
       setStatus('rejeitada');
+      
+      // Create notification for the lawyer who created the proposal
+      await createNotificationForLawyer('rejeitada');
+      
       toast({
         title: "Proposta Rejeitada",
         description: "Sua resposta foi registrada. Obrigado pelo seu tempo.",
       });
     } catch (error) {
+      console.error('Error rejecting proposal:', error);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar a proposta.",
