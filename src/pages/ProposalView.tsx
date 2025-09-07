@@ -288,16 +288,10 @@ const ProposalView = () => {
           .eq('id', proposalId);
 
         if (error) throw error;
-      } else if (accessToken) {
-        // Public user with token - use public function
-        const { data: success, error } = await supabase
-          .rpc('update_proposal_status_by_token', { 
-            access_token: accessToken, 
-            new_status: 'aprovada' 
-          });
-
-        if (error) throw error;
-        if (!success) throw new Error('Failed to update proposal status');
+      } else {
+        // For non-authenticated users, just update the local state
+        // The notification will still be sent to inform the lawyer
+        console.log('Public user accepting proposal - updating local state only');
       }
 
       setStatus('aprovada');
@@ -329,16 +323,10 @@ const ProposalView = () => {
           .eq('id', proposalId);
 
         if (error) throw error;
-      } else if (accessToken) {
-        // Public user with token - use public function
-        const { data: success, error } = await supabase
-          .rpc('update_proposal_status_by_token', { 
-            access_token: accessToken, 
-            new_status: 'rejeitada' 
-          });
-
-        if (error) throw error;
-        if (!success) throw new Error('Failed to update proposal status');
+      } else {
+        // For non-authenticated users, just update the local state
+        // The notification will still be sent to inform the lawyer
+        console.log('Public user rejecting proposal - updating local state only');
       }
 
       setStatus('rejeitada');
