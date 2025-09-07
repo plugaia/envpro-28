@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } as AuthError
       };
     }
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `http://localhost:8080/`; // Alterado para localhost
     
     const { data, error } = await supabase.auth.signUp({
       email,

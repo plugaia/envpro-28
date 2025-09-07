@@ -169,7 +169,7 @@ const Index = () => {
       
       if (error) throw error;
       
-      const proposalUrl = `${window.location.origin}/proposta/${proposal.id}?token=${tokenData}`;
+      const proposalUrl = `http://localhost:8080/proposta/${proposal.id}?token=${tokenData}`; // Alterado para localhost
       
       // Create WhatsApp message with proposal link using client's WhatsApp number
       const message = encodeURIComponent(

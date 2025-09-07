@@ -103,7 +103,7 @@ serve(async (req) => {
     
     // Generate a simple token for the registration URL (this won't be the actual invitation token)
     const simpleToken = Math.random().toString(36).substring(2, 15);
-    const registrationUrl = `https://409390a7-b191-4aa2-80d6-e46a971d8713.sandbox.lovable.dev/convite/${simpleToken}`;
+    const registrationUrl = `http://localhost:8080/convite/${simpleToken}`; // Alterado para localhost
 
     // Send invitation email
     console.log('Attempting to send email with Resend...');

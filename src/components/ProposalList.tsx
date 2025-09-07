@@ -51,7 +51,7 @@ export function ProposalList({ proposals, onSendEmail, onSendWhatsApp, onView, o
   };
 
   const handleShareLink = (proposal: Proposal) => {
-    const shareUrl = `${window.location.origin}/proposta/${proposal.id}`;
+    const shareUrl = `http://localhost:8080/proposta/${proposal.id}`; // Alterado para localhost
     navigator.clipboard.writeText(shareUrl).then(() => {
       toast({
         title: "Link copiado!",
@@ -278,7 +278,7 @@ export function ProposalList({ proposals, onSendEmail, onSendWhatsApp, onView, o
                                
                                if (error) throw error;
                                
-                               const proposalUrl = `${window.location.origin}/proposta/${proposal.id}?token=${tokenData}`;
+                               const proposalUrl = `http://localhost:8080/proposta/${proposal.id}?token=${tokenData}`; // Alterado para localhost
                                
                                // Create WhatsApp message with proposal link
                                const message = encodeURIComponent(
@@ -345,7 +345,7 @@ Equipe EnvPRO 📋⚖️`
                               
                               if (error) throw error;
                               
-                              const shareUrl = `${window.location.origin}/proposta/${proposal.id}?token=${tokenData}`;
+                              const shareUrl = `http://localhost:8080/proposta/${proposal.id}?token=${tokenData}`; // Alterado para localhost
                               await navigator.clipboard.writeText(shareUrl);
                               
                               toast({

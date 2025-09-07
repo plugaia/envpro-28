@@ -76,11 +76,9 @@ serve(async (req) => {
       );
     }
 
-    // Get the frontend URL from environment or use the referer header
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || req.headers.get('referer') || 'https://your-app-domain.com';
-    // Remove trailing slash and any path from referer
-    const cleanUrl = frontendUrl.replace(/\/$/, '').split('/').slice(0, 3).join('/');
-    const proposalUrl = `${cleanUrl}/proposta/${proposalId}?token=${tokenData}`;
+    // Use hardcoded localhost URL for development
+    const frontendUrl = 'http://localhost:8080'; 
+    const proposalUrl = `${frontendUrl}/proposta/${proposalId}?token=${tokenData}`;
     const companyName = proposal.companies?.name || 'Empresa';
     
     const formatCurrency = (value: number) => {
