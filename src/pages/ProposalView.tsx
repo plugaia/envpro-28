@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Check, X, FileText, Calendar, DollarSign, Building, User, Phone, Mail } from "lucide-react";
+import { Check, X, FileText, Calendar, DollarSign, Building, User, Phone, Mail, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneVerificationModal } from "@/components/PhoneVerificationModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import NotFound from "./NotFound";
 
 const ProposalView = () => {
@@ -25,6 +26,7 @@ const ProposalView = () => {
   const [lawyerInfo, setLawyerInfo] = useState<any>(null);
   const [showNotFound, setShowNotFound] = useState(false);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   
   // Check if this is a token-based access (URL contains token parameter)
   const urlParams = new URLSearchParams(window.location.search);
@@ -214,6 +216,7 @@ const ProposalView = () => {
   const updateProposalStatus = async (newStatus: 'aprovada' | 'rejeitada') => {
     try {
       setUpdating(true);
+      setUpdateError(null);
 
       if (user) {
         // Authenticated user - update directly
@@ -227,17 +230,26 @@ const ProposalView = () => {
 
         if (error) throw error;
       } else if (accessToken) {
-        // Public user with token - use RPC function
+        // Public user with token - use improved RPC function
         const { data, error } = await supabase
           .rpc('update_proposal_status_by_token', {
             p_access_token: accessToken,
             p_new_status: newStatus
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error('RPC Error:', error);
+          throw new Error('Erro de comunicação com o servidor');
+        }
         
-        if (!data.success) {
-          throw new Error(data.error);
+        if (!data || !data.success) {
+          const errorMessage = data?.error || 'Erro desconhecido';
+          throw new Error(errorMessage);
+        }
+
+        // Update local state with response data
+        if (data.client_name) {
+          setProposal(prev => ({ ...prev, client_name: data.client_name }));
         }
       } else {
         throw new Error('Acesso não autorizado');
@@ -260,9 +272,12 @@ const ProposalView = () => {
 
     } catch (error) {
       console.error('Error updating proposal status:', error);
+      const errorMessage = error.message || "Não foi possível atualizar a proposta.";
+      setUpdateError(errorMessage);
+      
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível atualizar a proposta.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -448,6 +463,14 @@ const ProposalView = () => {
             <div className="text-center text-sm text-muted-foreground mb-8">
               <p>A presente proposta não tem força pré-contratual, estando sujeita à aprovação da saúde fiscal do cedente e análise processual.</p>
             </div>
+
+            {/* Error Alert */}
+            {updateError && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{updateError}</AlertDescription>
+              </Alert>
+            )}
 
             {/* Action Buttons */}
             {status === 'pendente' && (
