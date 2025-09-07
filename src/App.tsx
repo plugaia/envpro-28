@@ -29,44 +29,46 @@ const AppRoutes = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/convite/:token" element={<TeamInvitation />} />
-      <Route path="/proposta/:proposalId" element={<ProposalView />} />
-      <Route path="/" element={
-        user ? (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/convite/:token" element={<TeamInvitation />} />
+        <Route path="/proposta/:proposalId" element={<ProposalView />} />
+        <Route path="/" element={
+          user ? (
+            <ProtectedRoute>
+              <Layout>
+                <Index />
+              </Layout>
+            </ProtectedRoute>
+          ) : (
+            <Landing />
+          )
+        } />
+        <Route path="/configuracoes" element={
           <ProtectedRoute>
             <Layout>
-              <Index />
+              <Configuracoes />
             </Layout>
           </ProtectedRoute>
-        ) : (
-          <Landing />
-        )
-      } />
-      <Route path="/configuracoes" element={
-        <ProtectedRoute>
-          <Layout>
-            <Configuracoes />
-          </Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/clientes" element={
-        <ProtectedRoute>
-          <Layout>
-            <Clientes />
-          </Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/relatorios" element={
-        <ProtectedRoute>
-          <Layout>
-            <Relatorios />
-          </Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        } />
+        <Route path="/clientes" element={
+          <ProtectedRoute>
+            <Layout>
+              <Clientes />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/relatorios" element={
+          <ProtectedRoute>
+            <Layout>
+              <Relatorios />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
@@ -76,9 +78,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <AppRoutes />
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
