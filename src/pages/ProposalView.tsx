@@ -20,6 +20,7 @@ const ProposalView = () => {
   const [proposal, setProposal] = useState<any>(null);
   const [status, setStatus] = useState<'pendente' | 'aprovada' | 'rejeitada'>('pendente');
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [verificationError, setVerificationError] = useState("");
   const [lawyerInfo, setLawyerInfo] = useState<any>(null);
   const [showNotFound, setShowNotFound] = useState(false);
@@ -209,6 +210,68 @@ const ProposalView = () => {
       console.error('Error sending notification to lawyer:', error);
     }
   };
+
+  const updateProposalStatus = async (newStatus: 'aprovada' | 'rejeitada') => {
+    try {
+      setUpdating(true);
+
+      if (user) {
+        // Authenticated user - update directly
+        const { error } = await supabase
+          .from('proposals')
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', proposalId);
+
+        if (error) throw error;
+      } else if (accessToken) {
+        // Public user with token - use RPC function
+        const { data, error } = await supabase
+          .rpc('update_proposal_status_by_token', {
+            p_access_token: accessToken,
+            p_new_status: newStatus
+          });
+
+        if (error) throw error;
+        
+        if (!data.success) {
+          throw new Error(data.error);
+        }
+      } else {
+        throw new Error('Acesso não autorizado');
+      }
+
+      setStatus(newStatus);
+      
+      // Create notification for the lawyer
+      await createNotificationForLawyer(newStatus);
+      
+      const statusText = newStatus === 'aprovada' ? 'aprovada' : 'rejeitada';
+      const message = newStatus === 'aprovada' 
+        ? 'Sua proposta foi aprovada com sucesso. Em breve entraremos em contato.'
+        : 'Sua resposta foi registrada. Obrigado pelo seu tempo.';
+
+      toast({
+        title: `Proposta ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}!`,
+        description: message,
+      });
+
+    } catch (error) {
+      console.error('Error updating proposal status:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível atualizar a proposta.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleAccept = () => updateProposalStatus('aprovada');
+  const handleReject = () => updateProposalStatus('rejeitada');
   
   if (!proposalId) {
     setShowNotFound(true);
@@ -276,92 +339,6 @@ const ProposalView = () => {
       hour: '2-digit',
       minute: '2-digit'
     }).format(dateObj);
-  };
-
-  const handleAccept = async () => {
-    try {
-      if (user) {
-        // Authenticated user - update in database directly
-        const { error } = await supabase
-          .from('proposals')
-          .update({ status: 'aprovada' })
-          .eq('id', proposalId);
-
-        if (error) throw error;
-      } else if (accessToken) {
-        // Public user with token - use Edge Function
-        const { data, error } = await supabase.functions.invoke('update-proposal-status', {
-          body: {
-            proposalId: proposalId,
-            accessToken: accessToken,
-            newStatus: 'aprovada'
-          }
-        });
-
-        if (error) throw error;
-        if (!data.success) throw new Error('Failed to update proposal status');
-      }
-
-      setStatus('aprovada');
-      
-      // Create notification for the lawyer who created the proposal
-      await createNotificationForLawyer('aprovada');
-      
-      toast({
-        title: "Proposta Aprovada!",
-        description: "Sua proposta foi aprovada com sucesso. Em breve entraremos em contato.",
-      });
-    } catch (error) {
-      console.error('Error accepting proposal:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a proposta.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleReject = async () => {
-    try {
-      if (user) {
-        // Authenticated user - update in database directly
-        const { error } = await supabase
-          .from('proposals')
-          .update({ status: 'rejeitada' })
-          .eq('id', proposalId);
-
-        if (error) throw error;
-      } else if (accessToken) {
-        // Public user with token - use Edge Function
-        const { data, error } = await supabase.functions.invoke('update-proposal-status', {
-          body: {
-            proposalId: proposalId,
-            accessToken: accessToken,
-            newStatus: 'rejeitada'
-          }
-        });
-
-        if (error) throw error;
-        if (!data.success) throw new Error('Failed to update proposal status');
-      }
-
-      setStatus('rejeitada');
-      
-      // Create notification for the lawyer who created the proposal
-      await createNotificationForLawyer('rejeitada');
-      
-      toast({
-        title: "Proposta Rejeitada",
-        description: "Sua resposta foi registrada. Obrigado pelo seu tempo.",
-      });
-    } catch (error) {
-      console.error('Error rejecting proposal:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a proposta.",
-        variant: "destructive",
-      });
-    }
   };
 
   const statusConfig = {
@@ -478,19 +455,21 @@ const ProposalView = () => {
                 <Button 
                   onClick={handleAccept}
                   size="lg"
+                  disabled={updating}
                   className="bg-success hover:bg-success/90 text-success-foreground px-8"
                 >
                   <Check className="w-5 h-5 mr-2" />
-                  Aceitar Proposta
+                  {updating ? "Processando..." : "Aceitar Proposta"}
                 </Button>
                 <Button 
                   onClick={handleReject}
                   variant="outline"
                   size="lg"
+                  disabled={updating}
                   className="px-8"
                 >
                   <X className="w-5 h-5 mr-2" />
-                  Recusar Proposta
+                  {updating ? "Processando..." : "Recusar Proposta"}
                 </Button>
               </div>
             )}
