@@ -12,12 +12,15 @@ import { PhoneVerificationModal } from "@/components/PhoneVerificationModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import NotFound from "./NotFound";
+import { useQueryClient } from "@tanstack/react-query"; // Import useQueryClient
 
 const ProposalView = () => {
   const { proposalId } = useParams();
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // Get queryClient instance
+  
   const [proposal, setProposal] = useState<any>(null);
   const [status, setStatus] = useState<'pendente' | 'aprovada' | 'rejeitada'>('pendente');
   const [loading, setLoading] = useState(true);
@@ -56,7 +59,6 @@ const ProposalView = () => {
         
         if (tokenData && tokenData.length > 0) {
           proposalDataFromRpc = tokenData[0];
-          // Now we have company_logo_url from the RPC function
           setCompanyLogoUrl(proposalDataFromRpc.company_logo_url);
           setIsVerified(false);
           setShowVerification(true);
@@ -84,13 +86,13 @@ const ProposalView = () => {
         throw new Error('No proposal data found');
       }
 
-      // Fetch company details for authenticated users
+      // Fetch company details for authenticated users or if not already set by token RPC
       let companyDetails = { 
         name: proposalDataFromRpc.company_name || 'Empresa', 
         logo_url: proposalDataFromRpc.company_logo_url || null 
       };
       
-      if (currentCompanyId) {
+      if (currentCompanyId && !companyLogoUrl) { // Only fetch if companyLogoUrl not already set by token RPC
         const { data: companyData, error: companyError } = await supabase
           .from('companies')
           .select('name, logo_url')
@@ -269,6 +271,9 @@ const ProposalView = () => {
         title: `Proposta ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}!`,
         description: message,
       });
+
+      // Invalidate proposals query cache to refresh the dashboard
+      queryClient.invalidateQueries({ queryKey: ['proposals'] });
 
     } catch (error) {
       console.error('Error updating proposal status:', error);
