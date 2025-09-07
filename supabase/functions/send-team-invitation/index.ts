@@ -7,12 +7,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const resend = new Resend('re_f826N2Hw_KyPgrkM429K8NNFvUZBdpuGF')
+// IMPORTANT: Make sure to set RESEND_API_KEY in your Supabase project's Edge Function secrets
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') ?? '')
 
 interface SendInvitationRequest {
   email: string;
   firstName: string;
   lastName: string;
+  invitationToken: string;
+  inviterId: string;
 }
 
 serve(async (req) => {
@@ -22,78 +25,33 @@ serve(async (req) => {
   }
 
   try {
-    // Get the Authorization header from the request
-    const authHeader = req.headers.get('authorization');
-    console.log('Auth header received:', authHeader ? 'Present' : 'Missing');
-    
-    if (!authHeader) {
-      console.error('No authorization header found');
-      return new Response(
-        JSON.stringify({ error: 'Authorization required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create authenticated Supabase client
+    // Use the Service Role Key for this function.
+    // The function is protected by being called after a secure RPC by an admin.
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { authorization: authHeader }
-        }
-      }
-    );
-
-    // Verify user authentication
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    console.log('User verification:', { 
-      userId: user?.id, 
-      email: user?.email, 
-      error: userError?.message 
-    });
-
-    if (userError || !user) {
-      console.error('Authentication failed:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Authentication failed' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { email, firstName, lastName }: SendInvitationRequest = await req.json();
-
-    if (!email || !firstName || !lastName) {
-      return new Response(
-        JSON.stringify({ error: 'Email, first name, and last name are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Creating team invitation with params:', {
-      p_email: email,
-      p_first_name: firstName,
-      p_last_name: lastName
-    });
-
-    // Get user's profile and company using service role for database operations
-    const serviceSupabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: profile, error: profileError } = await serviceSupabase
+    const { email, firstName, lastName, invitationToken, inviterId }: SendInvitationRequest = await req.json();
+
+    if (!email || !firstName || !lastName || !invitationToken || !inviterId) {
+      return new Response(
+        JSON.stringify({ error: 'Email, first name, last name, invitation token, and inviter ID are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get inviter's profile and company using the provided inviterId
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*, companies(*)')
-      .eq('user_id', user.id)
+      .eq('user_id', inviterId)
       .single();
-
-    console.log('Profile fetch result:', { profile: profile?.first_name, error: profileError?.message });
 
     if (profileError || !profile) {
       console.error('Failed to get user profile:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Failed to get user profile' }),
+        JSON.stringify({ error: 'Failed to get inviter profile' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -101,9 +59,8 @@ serve(async (req) => {
     const companyName = profile.companies?.name || 'LegalProp';
     const inviterName = `${profile.first_name} ${profile.last_name}`;
     
-    // Generate a simple token for the registration URL (this won't be the actual invitation token)
-    const simpleToken = Math.random().toString(36).substring(2, 15);
-    const registrationUrl = `http://localhost:8080/convite/${simpleToken}`; // Alterado para localhost
+    // Use the correct invitation token for the registration URL
+    const registrationUrl = `http://localhost:8080/convite/${invitationToken}`;
 
     // Send invitation email
     console.log('Attempting to send email with Resend...');

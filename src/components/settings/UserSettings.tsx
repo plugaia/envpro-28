@@ -114,11 +114,6 @@ export function UserSettings() {
     try {
       setInviteLoading(true);
       
-      console.log('Starting invitation process...');
-      console.log('Current user:', currentUser);
-      console.log('User ID:', currentUser?.id);
-      
-      // Check if user is authenticated
       if (!currentUser || !currentUser.id) {
         throw new Error('Usuário não autenticado');
       }
@@ -129,7 +124,6 @@ export function UserSettings() {
       });
 
       if (emailCheckError) {
-        console.error('Email check error:', emailCheckError);
         throw new Error('Erro ao verificar disponibilidade do email');
       }
 
@@ -142,30 +136,6 @@ export function UserSettings() {
         return;
       }
       
-      // Test admin status using the correct function
-      const { data: adminCheck, error: adminError } = await supabase
-        .rpc('is_admin', { user_id: currentUser?.id });
-      
-      console.log('Admin check result:', { adminCheck, adminError });
-      
-      // Also check profile directly
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('user_id', currentUser.id)
-        .single();
-        
-      console.log('Profile check:', { profileData, profileError });
-      
-      if (adminError) {
-        console.error('Admin check error:', adminError);
-        throw new Error('Erro ao verificar permissões de administrador');
-      }
-      
-      if (!adminCheck) {
-        throw new Error('Você precisa ter permissões de administrador para enviar convites.');
-      }
-
       // Create team invitation
       const { data, error } = await supabase
         .rpc('create_team_invitation', {
@@ -174,21 +144,24 @@ export function UserSettings() {
           p_last_name: inviteForm.lastName,
           p_whatsapp_number: null
         });
-        
-      console.log('RPC result:', { data, error });
 
       if (error) throw error;
+
+      const invitationToken = data?.[0]?.invitation_token;
+      if (!invitationToken) {
+        throw new Error("Failed to get invitation token from RPC call.");
+      }
 
       // Send invitation email via edge function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-team-invitation', {
         body: {
           email: inviteForm.email,
           firstName: inviteForm.firstName,
-          lastName: inviteForm.lastName
+          lastName: inviteForm.lastName,
+          invitationToken: invitationToken,
+          inviterId: currentUser.id
         }
       });
-
-      console.log('Email result:', { emailResult, emailError });
 
       if (emailError) {
         console.error('Email error:', emailError);
