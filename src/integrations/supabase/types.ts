@@ -144,7 +144,6 @@ export type Database = {
           responsible_email: string
           responsible_phone: string
           updated_at: string
-          logo_url: string | null
         }
         Insert: {
           address_city?: string | null
@@ -161,7 +160,6 @@ export type Database = {
           responsible_email: string
           responsible_phone: string
           updated_at?: string
-          logo_url?: string | null
         }
         Update: {
           address_city?: string | null
@@ -178,7 +176,6 @@ export type Database = {
           responsible_email?: string
           responsible_phone?: string
           updated_at?: string
-          logo_url?: string | null
         }
         Relationships: []
       }
@@ -598,10 +595,6 @@ export type Database = {
           receiver_type: string
           status: string
           valid_until: string
-          company_logo_url: string
-          description: string
-          created_by: string
-          updated_at: string
         }[]
       }
       get_user_company_id: {
@@ -653,10 +646,6 @@ export type Database = {
       mark_notification_read: {
         Args: { notification_id: string }
         Returns: boolean
-      }
-      update_proposal_status_by_token: {
-        Args: { p_access_token: string; p_new_status: string }
-        Returns: Json
       }
       validate_password_strength: {
         Args: { password_input: string }
