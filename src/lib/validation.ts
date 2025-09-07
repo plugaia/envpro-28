@@ -38,11 +38,14 @@ export const textSchema = (minLength = 1, maxLength = 500) =>
     .max(maxLength, `Campo deve ter no máximo ${maxLength} caracteres`)
     .transform(sanitizeInput);
 
-// Name validation (no special characters except spaces, hyphens, apostrophes)
-export const nameSchema = z.string()
-  .min(2, 'Nome deve ter pelo menos 2 caracteres')
+// Base name validation (no special characters except spaces, hyphens, apostrophes)
+export const baseNameValidation = z.string()
   .max(100, 'Nome muito longo')
-  .regex(/^[a-zA-ZÀ-ÿ\s\-\']+$/, 'Nome contém caracteres inválidos')
+  .regex(/^[a-zA-ZÀ-ÿ\s\-\']+$/, 'Nome contém caracteres inválidos');
+
+// Default name schema with min length of 2 and transform
+export const nameSchema = baseNameValidation
+  .min(2, 'Nome deve ter pelo menos 2 caracteres')
   .transform(sanitizeInput);
 
 // Password validation schema

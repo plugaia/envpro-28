@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAddClient, useUpdateClient, type Client } from "@/hooks/useClients";
-import { nameSchema, emailSchema, phoneSchema } from "@/lib/validation";
+import { baseNameValidation, emailSchema, phoneSchema, sanitizeInput } from "@/lib/validation";
 import InputMask from 'react-input-mask';
 
 interface ClientFormModalProps {
@@ -17,7 +17,9 @@ interface ClientFormModalProps {
 }
 
 const clientSchema = z.object({
-  name: nameSchema.min(5, "Nome completo é obrigatório"),
+  name: baseNameValidation
+    .min(5, "Nome completo é obrigatório")
+    .transform(sanitizeInput),
   email: emailSchema,
   phone: phoneSchema,
 });
