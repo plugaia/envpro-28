@@ -281,17 +281,25 @@ const ProposalView = () => {
   const handleAccept = async () => {
     try {
       if (user) {
-        // Authenticated user - update in database
+        // Authenticated user - update in database directly
         const { error } = await supabase
           .from('proposals')
           .update({ status: 'aprovada' })
           .eq('id', proposalId);
 
         if (error) throw error;
-      } else {
-        // For non-authenticated users, just update the local state
-        // The notification will still be sent to inform the lawyer
-        console.log('Public user accepting proposal - updating local state only');
+      } else if (accessToken) {
+        // Public user with token - use Edge Function
+        const { data, error } = await supabase.functions.invoke('update-proposal-status', {
+          body: {
+            proposalId: proposalId,
+            accessToken: accessToken,
+            newStatus: 'aprovada'
+          }
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error('Failed to update proposal status');
       }
 
       setStatus('aprovada');
@@ -316,17 +324,25 @@ const ProposalView = () => {
   const handleReject = async () => {
     try {
       if (user) {
-        // Authenticated user - update in database
+        // Authenticated user - update in database directly
         const { error } = await supabase
           .from('proposals')
           .update({ status: 'rejeitada' })
           .eq('id', proposalId);
 
         if (error) throw error;
-      } else {
-        // For non-authenticated users, just update the local state
-        // The notification will still be sent to inform the lawyer
-        console.log('Public user rejecting proposal - updating local state only');
+      } else if (accessToken) {
+        // Public user with token - use Edge Function
+        const { data, error } = await supabase.functions.invoke('update-proposal-status', {
+          body: {
+            proposalId: proposalId,
+            accessToken: accessToken,
+            newStatus: 'rejeitada'
+          }
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error('Failed to update proposal status');
       }
 
       setStatus('rejeitada');
