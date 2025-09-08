@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Check, X, FileText, Calendar, DollarSign, Building, User, Phone, Mail } from "lucide-react";
+import { Check, X, FileText, Calendar, DollarSign, Building, User, Phone, Mail, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PhoneVerificationModal } from "@/components/PhoneVerificationModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import NotFound from "./NotFound";
+import { PdfGeneratorButton } from "@/components/PdfGeneratorButton"; // Import the new component
 
 const ProposalView = () => {
   const { proposalId } = useParams();
@@ -386,7 +387,7 @@ const ProposalView = () => {
 
       <div className="max-w-4xl mx-auto px-4 -mt-8 pb-12">
         {/* Status Card */}
-        <Card className="card-elegant mb-8 overflow-hidden">
+        <Card className="card-elegant mb-8 overflow-hidden" id={`proposal-view-${proposal.id}`}> {/* Add ID for PDF generation */}
           <div className="bg-muted/50 px-6 py-4 border-b">
             <div className="flex items-center justify-between">
               <div>
@@ -565,6 +566,16 @@ const ProposalView = () => {
           <div className="text-center text-sm text-muted-foreground mt-6 pt-4 border-t border-border">
             <p>© 2025 {proposal.companies?.name || 'LegalProp'} - Plataforma de Propostas Jurídicas</p>
           </div>
+        </div>
+        {/* PDF Download Button for the entire view */}
+        <div className="text-center mt-8">
+          <PdfGeneratorButton
+            rootElementId={`proposal-view-${proposal.id}`}
+            fileName={`proposta-${proposal.client_name.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
+            buttonText="Baixar Proposta em PDF"
+            variant="default"
+            size="lg"
+          />
         </div>
       </div>
     </div>

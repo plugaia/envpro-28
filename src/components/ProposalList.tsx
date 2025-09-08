@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale";
 import type { Proposal } from "@/components/ProposalCard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PdfGeneratorButton } from "./PdfGeneratorButton"; // Import the new component
 
 interface ProposalListProps {
   proposals: Proposal[];
@@ -48,22 +49,6 @@ export function ProposalList({ proposals, onSendEmail, onSendWhatsApp, onView, o
 
   const formatDate = (date: Date) => {
     return format(date, "dd/MM/yy", { locale: ptBR });
-  };
-
-  const handleShareLink = (proposal: Proposal) => {
-    const shareUrl = `http://localhost:8080/proposta/${proposal.id}`; // Alterado para localhost
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      toast({
-        title: "Link copiado!",
-        description: "O link da proposta foi copiado para a área de transferência.",
-      });
-    }).catch(() => {
-      toast({
-        title: "Erro ao copiar",
-        description: "Não foi possível copiar o link. Tente novamente.",
-        variant: "destructive",
-      });
-    });
   };
 
   const handleSendEmail = async (proposal: Proposal) => {
@@ -330,6 +315,17 @@ Equipe EnvPRO 📋⚖️`
                         >
                           <Share className="w-3 h-3" />
                         </Button>
+                        {/* PDF Download Button */}
+                        <PdfGeneratorButton
+                          rootElementId={`proposal-view-${proposal.id}`} // Unique ID for each proposal card
+                          fileName={`proposta-${proposal.clientName.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
+                          buttonText="" // No text for icon button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 p-0"
+                        >
+                          <Download className="w-3 h-3" />
+                        </PdfGeneratorButton>
                        <Button
                          size="sm"
                          variant="ghost"

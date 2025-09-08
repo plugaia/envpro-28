@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PdfGeneratorButton } from "./PdfGeneratorButton"; // Import the new component
 
 export interface Proposal {
   id: string;
@@ -92,28 +93,6 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
     }
   };
 
-  const handleSendEmail = async (proposal: Proposal) => {
-    try {
-      const response = await supabase.functions.invoke('send-proposal-email', {
-        body: { proposalId: proposal.id }
-      });
-
-      if (response.error) throw response.error;
-
-      toast({
-        title: "Email enviado!",
-        description: `Proposta enviada para ${proposal.clientEmail}`,
-      });
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast({
-        title: "Erro ao enviar email",
-        description: "Não foi possível enviar o email. Tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <Card className="card-elegant hover:shadow-lg transition-all duration-300">
       <CardHeader className="pb-3">
@@ -184,7 +163,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleSendEmail(proposal)}
+              onClick={() => onSendEmail(proposal)}
               className="flex items-center gap-1"
               disabled={!proposal.canViewClientDetails}
             >
@@ -210,6 +189,16 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
               <Share className="w-3 h-3" />
               Link
             </Button>
+            {/* PDF Download Button */}
+            <PdfGeneratorButton
+              rootElementId={`proposal-view-${proposal.id}`} // Unique ID for each proposal card
+              fileName={`proposta-${proposal.clientName.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
+              buttonText="Baixar PDF"
+              variant="outline"
+              size="sm"
+            >
+              <Download className="w-3 h-3" />
+            </PdfGeneratorButton>
           </div>
           <div className="flex gap-1">
             <Button
