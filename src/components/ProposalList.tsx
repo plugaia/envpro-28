@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Download, Edit, Trash2 } from "lucide-react";
+import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Proposal } from "@/components/ProposalCard";
@@ -108,54 +108,6 @@ export function ProposalList({ proposals, onSendEmail, onSendWhatsApp, onView, o
       toast({
         title: "Erro ao enviar email",
         description: "Não foi possível enviar o email. Tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownloadPDF = async (proposal: Proposal) => {
-    try {
-      const response = await supabase.functions.invoke('generate-proposal-pdf', {
-        body: { proposalId: proposal.id }
-      });
-
-      if (response.error) throw response.error;
-
-      // Convert the response data to proper format
-      let pdfBlob;
-      if (response.data instanceof ArrayBuffer) {
-        pdfBlob = new Blob([response.data], { type: 'application/pdf' });
-      } else if (typeof response.data === 'string') {
-        // If it's base64 or string, convert it
-        const binaryString = atob(response.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
-      } else {
-        // Fallback - treat as raw data
-        pdfBlob = new Blob([new Uint8Array(response.data)], { type: 'application/pdf' });
-      }
-      
-      const url = window.URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `proposta-${proposal.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "PDF gerado com sucesso",
-        description: "O arquivo PDF foi baixado automaticamente.",
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: "Erro ao gerar PDF",
-        description: "Não foi possível gerar o PDF. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -378,15 +330,6 @@ Equipe EnvPRO 📋⚖️`
                         >
                           <Share className="w-3 h-3" />
                         </Button>
-                       <Button
-                         size="sm"
-                         variant="ghost"
-                         onClick={() => handleDownloadPDF(proposal)}
-                         className="h-7 w-7 p-0"
-                         title="Baixar PDF"
-                       >
-                         <Download className="w-3 h-3" />
-                       </Button>
                        <Button
                          size="sm"
                          variant="ghost"
