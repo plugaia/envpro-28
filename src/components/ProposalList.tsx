@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Edit, Trash2 } from "lucide-react";
+import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Edit, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Proposal } from "@/components/ProposalCard";
