@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts"
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0'
+import puppeteer from "https://deno.land/x/puppeteer@1.0.0/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +18,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log('PDF generation request received.');
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -26,11 +27,13 @@ serve(async (req) => {
     const { proposalId }: GeneratePDFRequest = await req.json();
 
     if (!proposalId) {
+      console.error('Error: Proposal ID is required.');
       return new Response(
         JSON.stringify({ error: 'Proposal ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    console.log(`Fetching proposal data for ID: ${proposalId}`);
 
     // Get proposal data (without sensitive contact info)
     const { data: proposal, error: proposalError } = await supabase
@@ -46,6 +49,7 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    console.log('Proposal data fetched successfully.');
 
     // Get client contact data using secure function
     const { data: contactData, error: contactError } = await supabase
@@ -58,7 +62,7 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
+    console.log('Client contact data fetched successfully.');
     const clientContact = contactData[0];
 
     // Get lawyer information (proposal creator)
@@ -69,13 +73,18 @@ serve(async (req) => {
       .single();
 
     if (lawyerError) {
-      console.error('Lawyer data fetch error:', lawyerError);
+      console.warn('Lawyer data fetch error:', lawyerError);
     }
+    console.log('Lawyer data fetched successfully (if available).');
 
     // Get lawyer's auth data for email
     const { data: lawyerAuth, error: lawyerAuthError } = await supabase.auth.admin.getUserById(
       proposal.created_by || ''
     );
+
+    if (lawyerAuthError) {
+      console.warn('Lawyer auth data fetch error:', lawyerAuthError);
+    }
 
     // Use lawyer's individual phone or fallback to company phone
     let lawyerPhone = lawyerData?.phone || proposal.companies?.responsible_phone || '';
@@ -199,15 +208,25 @@ serve(async (req) => {
       </body>
       </html>
     `;
+    console.log('HTML content generated.');
 
     // Generate PDF using Puppeteer
     console.log('Launching browser for PDF generation...');
     const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-zygote',
+        '--single-process'
+      ]
     });
+    console.log('Browser launched.');
     
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    console.log('Page content set.');
     
     // Generate PDF
     const pdfBuffer = await page.pdf({
@@ -235,7 +254,7 @@ serve(async (req) => {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('PDF generation error:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to generate PDF', details: error.message }),
