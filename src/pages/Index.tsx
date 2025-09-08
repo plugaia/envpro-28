@@ -44,6 +44,26 @@ const Index = () => {
 
       if (error) throw error;
 
+      // Get unique user IDs from proposals to fetch their names
+      const createdByUsersIds = [...new Set(data.map((p: any) => p.created_by).filter(Boolean))];
+      let userNames: { [key: string]: string } = {};
+
+      if (createdByUsersIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, first_name, last_name')
+          .in('user_id', createdByUsersIds);
+
+        if (profilesError) {
+          console.error('Error fetching profiles for assignees:', profilesError);
+        } else {
+          userNames = profilesData.reduce((acc, profile) => {
+            acc[profile.user_id] = `${profile.first_name} ${profile.last_name}`.trim();
+            return acc;
+          }, {} as { [key: string]: string });
+        }
+      }
+
       // Transform data to match Proposal interface
       const transformedProposals: Proposal[] = data.map((proposal: any) => ({
         id: proposal.id,
@@ -58,7 +78,7 @@ const Index = () => {
         status: proposal.status as "pendente" | "aprovada" | "rejeitada",
         createdAt: new Date(proposal.created_at),
         updatedAt: new Date(proposal.updated_at),
-        assignee: "Sistema", // TODO: Get from created_by relation
+        assignee: proposal.created_by ? userNames[proposal.created_by] || "Usuário Desconhecido" : "Sistema",
         canViewClientDetails: proposal.can_view_client_details, // New field for UI control
       }));
 
