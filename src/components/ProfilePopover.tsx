@@ -1,4 +1,4 @@
-import { User, Settings, LogOut, Shield } from "lucide-react";
+import { User, Settings, LogOut, Shield, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -66,6 +66,20 @@ export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
           >
             <Shield className="w-4 h-4 mr-2" />
             Privacidade
+          </Button>
+          {/* New: Manage Sessions link */}
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-sm h-8"
+            onClick={() => {
+              toast({
+                title: "Funcionalidade em desenvolvimento",
+                description: "O gerenciamento de sessões ativas estará disponível em breve.",
+              });
+            }}
+          >
+            <Monitor className="w-4 h-4 mr-2" />
+            Gerenciar Sessões
           </Button>
           <Separator className="my-2" />
           <Button 

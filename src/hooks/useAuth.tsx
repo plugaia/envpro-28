@@ -183,8 +183,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           message: `Dados inválidos: ${validationError.errors?.[0]?.message || 'Email ou senha inválidos'}`
         } as AuthError
       };
-    }
-    const { error } = await supabase.auth.signInWithPassword({
+    };
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -195,6 +196,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         description: error.message,
         variant: "destructive",
       });
+    } else if (data.user) {
+      // Log successful login to audit_logs
+      try {
+        await supabase.rpc('create_audit_log', {
+          p_action_type: 'LOGIN_SUCCESS',
+          p_new_data: { action: 'user_logged_in' }
+        });
+      } catch (auditError) {
+        console.error('Audit log error for login:', auditError);
+      }
     }
 
     return { error };
