@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0'
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts" // Updated Puppeteer version
+import puppeteer from "https://deno.land/x/puppeteer@17.1.1/mod.ts" // Updated Puppeteer version
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -103,7 +103,7 @@ serve(async (req) => {
     const formatDate = (date: string) => {
       return new Intl.DateTimeFormat('pt-BR', {
         day: '2-digit',
-        month: '2-digit', 
+        month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
@@ -256,6 +256,7 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('PDF generation error:', error);
+    console.error('Error details:', error.message); // Added for more specific error logging
     return new Response(
       JSON.stringify({ error: 'Failed to generate PDF', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
