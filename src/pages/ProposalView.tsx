@@ -35,6 +35,7 @@ const ProposalView = () => {
   
   useEffect(() => {
     if (proposalId) {
+      console.log('Fetching proposal for ID:', proposalId);
       fetchProposal();
     }
   }, [proposalId, user, accessToken]);
@@ -46,11 +47,15 @@ const ProposalView = () => {
       let currentCompanyId: string | null = null;
 
       if (accessToken) {
+        console.log('Attempting public access with token:', accessToken);
         // Public access via token - now includes company logo
         const { data: tokenData, error: tokenError } = await supabase
           .rpc('get_proposal_by_token', { access_token: accessToken });
           
-        if (tokenError) throw tokenError;
+        if (tokenError) {
+          console.error('RPC get_proposal_by_token error:', tokenError);
+          throw tokenError;
+        }
         
         if (tokenData && tokenData.length > 0) {
           proposalDataFromRpc = tokenData[0];
@@ -58,27 +63,37 @@ const ProposalView = () => {
           setCompanyLogoUrl(proposalDataFromRpc.company_logo_url);
           setIsVerified(false);
           setShowVerification(true);
+          console.log('Public proposal data fetched:', proposalDataFromRpc);
         } else {
+          console.warn('No public proposal data found for token:', accessToken);
           throw new Error('Token inválido ou expirado');
         }
       } else if (user) {
+        console.log('Attempting authenticated access for user:', user.id);
         // Authenticated user access
         const { data: secureData, error: secureError } = await supabase
           .rpc('get_proposal_by_id', { p_proposal_id: proposalId });
           
-        if (secureError) throw secureError;
+        if (secureError) {
+          console.error('RPC get_proposal_by_id error:', secureError);
+          throw secureError;
+        }
         
         if (secureData && secureData.length > 0) {
           proposalDataFromRpc = secureData[0];
           currentCompanyId = proposalDataFromRpc.company_id;
+          console.log('Authenticated proposal data fetched:', proposalDataFromRpc);
         } else {
+          console.warn('No authenticated proposal data found for ID:', proposalId);
           throw new Error('Proposta não encontrada ou sem permissão de acesso');
         }
       } else {
+        console.warn('Neither access token nor authenticated user found.');
         throw new Error('Acesso não autorizado');
       }
 
       if (!proposalDataFromRpc) {
+        console.error('Proposal data from RPC is null or undefined.');
         throw new Error('No proposal data found');
       }
 
@@ -111,6 +126,7 @@ const ProposalView = () => {
         can_view_client_details: proposalDataFromRpc.can_view_client_details || false,
       };
       
+      console.log('Final proposal object before setting state:', finalProposal);
       setProposal(finalProposal);
       setStatus(finalProposal.status as 'pendente' | 'aprovada' | 'rejeitada');
       
@@ -118,7 +134,7 @@ const ProposalView = () => {
       await fetchLawyerInfo(finalProposal.created_by);
       
     } catch (error) {
-      console.error('Error fetching proposal:', error);
+      console.error('Error fetching proposal in main block:', error);
       setShowNotFound(true);
       toast({
         title: "Erro",
