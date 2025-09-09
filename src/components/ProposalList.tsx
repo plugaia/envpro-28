@@ -2,13 +2,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Edit, Trash2, Download } from "lucide-react";
+import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Proposal } from "@/components/ProposalCard";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { PdfGeneratorButton } from "./PdfGeneratorButton"; // Import the new component
 
 interface ProposalListProps {
   proposals: Proposal[];
@@ -315,17 +314,6 @@ Equipe EnvPRO 📋⚖️`
                         >
                           <Share className="w-3 h-3" />
                         </Button>
-                        {/* PDF Download Button */}
-                        <PdfGeneratorButton
-                          rootElementId={`proposal-card-${proposal.id}`} // Unique ID for each proposal card
-                          fileName={`proposta-${proposal.clientName.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
-                          buttonText="" // No text for icon button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 p-0"
-                        >
-                          <Download className="w-3 h-3" />
-                        </PdfGeneratorButton>
                        <Button
                          size="sm"
                          variant="ghost"
