@@ -94,7 +94,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
   };
 
   return (
-    <Card className="card-elegant hover:shadow-lg transition-all duration-300">
+    <Card className="card-elegant hover:shadow-lg transition-all duration-300" id={`proposal-card-${proposal.id}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -191,7 +191,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
             </Button>
             {/* PDF Download Button */}
             <PdfGeneratorButton
-              rootElementId={`proposal-view-${proposal.id}`} // Unique ID for each proposal card
+              rootElementId={`proposal-card-${proposal.id}`} // Unique ID for each proposal card
               fileName={`proposta-${proposal.clientName.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
               buttonText="Baixar PDF"
               variant="outline"

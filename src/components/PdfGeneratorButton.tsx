@@ -31,6 +31,8 @@ export function PdfGeneratorButton({
 
   const handleGeneratePdf = async () => {
     setLoading(true);
+    let originalOverflow = ''; // Declare outside try block
+
     try {
       const input = document.getElementById(rootElementId);
       if (!input) {
@@ -38,7 +40,7 @@ export function PdfGeneratorButton({
       }
 
       // Temporarily hide scrollbars to prevent them from appearing in the PDF
-      const originalOverflow = document.documentElement.style.overflow;
+      originalOverflow = document.documentElement.style.overflow;
       document.documentElement.style.overflow = 'hidden';
 
       const canvas = await html2canvas(input, {

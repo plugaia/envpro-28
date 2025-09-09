@@ -317,7 +317,7 @@ Equipe EnvPRO 📋⚖️`
                         </Button>
                         {/* PDF Download Button */}
                         <PdfGeneratorButton
-                          rootElementId={`proposal-view-${proposal.id}`} // Unique ID for each proposal card
+                          rootElementId={`proposal-card-${proposal.id}`} // Unique ID for each proposal card
                           fileName={`proposta-${proposal.clientName.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
                           buttonText="" // No text for icon button
                           variant="ghost"
