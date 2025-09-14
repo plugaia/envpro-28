@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PhoneVerificationModal } from '@/components/PhoneVerificationModal';
 import { type Database } from "@/integrations/supabase/types";
 import { DefaultLayout } from '@/components/proposal-layouts/DefaultLayout';
+import { CompactLayout } from '@/components/proposal-layouts/CompactLayout';
 
 type Proposal = Database['public']['Functions']['get_proposal_by_token']['Returns'][number];
 type LawyerInfo = Database['public']['Functions']['get_lawyer_info']['Returns'][number];
@@ -19,6 +20,7 @@ type ProposalWithFullData = Proposal & { custom_fields_data?: { [key: string]: a
 // Map component names from the database to actual React components
 const layoutComponents = {
   'DefaultLayout': DefaultLayout,
+  'CompactLayout': CompactLayout,
   // Add other layouts here as they are created
 };
 
