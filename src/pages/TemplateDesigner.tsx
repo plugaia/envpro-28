@@ -162,7 +162,7 @@ export default function TemplateDesigner() {
           <main className="col-span-9 bg-muted/50 border rounded-lg p-4 overflow-y-auto">
             <div className="bg-white min-h-[70vh] w-full max-w-4xl mx-auto shadow-lg p-8 space-y-3">
               {/* Mantém SortableContext sempre presente para árvore consistente */}
-              <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              <SortableContext key={templateId} items={sortableIds} strategy={verticalListSortingStrategy}>
                 {blocks.length === 0 ? (
                   <Card className="p-8 text-center text-muted-foreground">
                     Arraste para reordenar e use a paleta ao lado para adicionar elementos.
