@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
 
     return () => subscription.unsubscribe();
-  }, [toast]);
+  }, []);
 
   const signUp = async (email: string, password: string, userData: {
     firstName: string;
