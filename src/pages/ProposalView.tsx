@@ -1,601 +1,251 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Check, X, FileText, Calendar, DollarSign, Building, User, Phone, Mail, Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { PhoneVerificationModal } from "@/components/PhoneVerificationModal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import NotFound from "./NotFound";
-import { PdfGeneratorButton } from "@/components/PdfGeneratorButton"; // Import the new component
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CheckCircle, XCircle, Clock, FileText, User, Building, Briefcase, Calendar, DollarSign, ThumbsUp, ThumbsDown, Phone } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
+import { PhoneVerificationModal } from '@/components/PhoneVerificationModal';
+import { type Database } from "@/integrations/supabase/types";
+
+type Proposal = Database['public']['Functions']['get_proposal_by_token']['Returns'][number];
+type LawyerInfo = Database['public']['Functions']['get_lawyer_info']['Returns'][number];
+type Template = Database['public']['Tables']['proposal_templates']['Row'];
+type TemplateField = Database['public']['Tables']['template_fields']['Row'];
+type TemplateWithFields = Template & { template_fields: TemplateField[] };
+type ProposalWithFullData = Proposal & { custom_fields_data?: { [key: string]: any }, template_id?: string };
 
 const ProposalView = () => {
-  const { proposalId } = useParams();
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   const { toast } = useToast();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [proposal, setProposal] = useState<any>(null);
-  const [status, setStatus] = useState<'pendente' | 'aprovada' | 'rejeitada'>('pendente');
+
+  const [proposal, setProposal] = useState<ProposalWithFullData | null>(null);
+  const [lawyer, setLawyer] = useState<LawyerInfo | null>(null);
+  const [template, setTemplate] = useState<TemplateWithFields | null>(null);
   const [loading, setLoading] = useState(true);
-  const [verificationError, setVerificationError] = useState("");
-  const [lawyerInfo, setLawyerInfo] = useState<any>(null);
-  const [showNotFound, setShowNotFound] = useState(false);
-  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
-  
-  // Check if this is a token-based access (URL contains token parameter)
-  const urlParams = new URLSearchParams(window.location.search);
-  const accessToken = urlParams.get('token');
-  
-  const [isVerified, setIsVerified] = useState(!!user); // Authenticated users skip verification
-  const [showVerification, setShowVerification] = useState(!user && !!accessToken);
-  
+  const [error, setError] = useState<string | null>(null);
+  const [action, setAction] = useState<'approve' | 'reject' | null>(null);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
-    if (proposalId) {
-      console.log('Fetching proposal for ID:', proposalId);
-      fetchProposal();
-    }
-  }, [proposalId, user, accessToken]);
-
-  const fetchProposal = async () => {
-    try {
-      setLoading(true);
-      let proposalDataFromRpc: any = null;
-      let currentCompanyId: string | null = null;
-
-      if (accessToken) {
-        console.log('Attempting public access with token:', accessToken);
-        // Public access via token - now includes company logo
-        const { data: tokenData, error: tokenError } = await supabase
-          .rpc('get_proposal_by_token', { access_token: accessToken });
-          
-        if (tokenError) {
-          console.error('RPC get_proposal_by_token error:', tokenError);
-          throw tokenError;
-        }
-        
-        if (tokenData && tokenData.length > 0) {
-          proposalDataFromRpc = tokenData[0];
-          // Now we have company_logo_url from the RPC function
-          setCompanyLogoUrl(proposalDataFromRpc.company_logo_url);
-          setIsVerified(false);
-          setShowVerification(true);
-          console.log('Public proposal data fetched:', proposalDataFromRpc);
-        } else {
-          console.warn('No public proposal data found for token:', accessToken);
-          throw new Error('Token inválido ou expirado');
-        }
-      } else if (user) {
-        console.log('Attempting authenticated access for user:', user.id);
-        // Authenticated user access
-        const { data: secureData, error: secureError } = await supabase
-          .rpc('get_proposal_by_id', { p_proposal_id: proposalId });
-          
-        if (secureError) {
-          console.error('RPC get_proposal_by_id error:', secureError);
-          throw secureError;
-        }
-        
-        if (secureData && secureData.length > 0) {
-          proposalDataFromRpc = secureData[0];
-          currentCompanyId = proposalDataFromRpc.company_id;
-          console.log('Authenticated proposal data fetched:', proposalDataFromRpc);
-        } else {
-          console.warn('No authenticated proposal data found for ID:', proposalId);
-          throw new Error('Proposta não encontrada ou sem permissão de acesso');
-        }
-      } else {
-        console.warn('Neither access token nor authenticated user found.');
-        throw new Error('Acesso não autorizado');
-      }
-
-      if (!proposalDataFromRpc) {
-        console.error('Proposal data from RPC is null or undefined.');
-        throw new Error('No proposal data found');
-      }
-
-      // Fetch company details for authenticated users
-      let companyDetails = { 
-        name: proposalDataFromRpc.company_name || 'Empresa', 
-        logo_url: proposalDataFromRpc.company_logo_url || null 
-      };
-      
-      if (currentCompanyId) {
-        const { data: companyData, error: companyError } = await supabase
-          .from('companies')
-          .select('name, logo_url')
-          .eq('id', currentCompanyId)
-          .single();
-
-        if (companyError) {
-          console.warn('Error fetching company details:', companyError);
-        } else if (companyData) {
-          companyDetails = { name: companyData.name, logo_url: companyData.logo_url };
-          setCompanyLogoUrl(companyData.logo_url);
-        }
-      }
-
-      const finalProposal = {
-        ...proposalDataFromRpc,
-        companies: companyDetails,
-        client_email: proposalDataFromRpc.client_email || null,
-        client_phone: proposalDataFromRpc.client_phone || null,
-        can_view_client_details: proposalDataFromRpc.can_view_client_details || false,
-      };
-      
-      console.log('Final proposal object before setting state:', finalProposal);
-      setProposal(finalProposal);
-      setStatus(finalProposal.status as 'pendente' | 'aprovada' | 'rejeitada');
-      
-      // Fetch lawyer information for all proposals
-      await fetchLawyerInfo(finalProposal.created_by);
-      
-    } catch (error) {
-      console.error('Error fetching proposal in main block:', error);
-      setShowNotFound(true);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar a proposta.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchLawyerInfo = async (createdByUserId: string) => {
-    if (!createdByUserId) return;
-    try {
-      // Use RPC function to get lawyer information
-      const { data: lawyerData, error: lawyerError } = await supabase
-        .rpc('get_lawyer_info', { p_proposal_id: proposalId });
-
-      if (lawyerError) {
-        console.error('Error fetching lawyer info:', lawyerError);
+    const fetchProposal = async () => {
+      if (!token) {
+        setError("Token de acesso não fornecido. Acesso negado.");
+        setLoading(false);
         return;
       }
 
-      if (lawyerData && lawyerData.length > 0) {
-        setLawyerInfo(lawyerData[0]);
-      }
-    } catch (error) {
-      console.error('Error in fetchLawyerInfo:', error);
-    }
-  };
+      try {
+        const { data, error: rpcError } = await supabase.rpc('get_proposal_by_token', { access_token: token });
+        if (rpcError) throw rpcError;
+        if (!data || data.length === 0) throw new Error("Proposta não encontrada ou o link expirou.");
+        
+        const fetchedProposal = data[0] as ProposalWithFullData;
+        setProposal(fetchedProposal);
 
-  const handlePhoneVerification = async (digits: string) => {
-    if (digits.length !== 4 || !/^\d{4}$/.test(digits)) {
-      setVerificationError("Digite exatamente 4 dígitos.");
-      return;
-    }
+        // Fetch full proposal data to get custom fields
+        const { data: fullProposalData, error: fullProposalError } = await supabase
+          .from('proposals')
+          .select('custom_fields_data, template_id')
+          .eq('id', fetchedProposal.id)
+          .single();
+        
+        if (fullProposalError) console.error("Could not fetch custom fields", fullProposalError);
+        
+        if (fullProposalData) {
+          fetchedProposal.custom_fields_data = fullProposalData.custom_fields_data;
+          fetchedProposal.template_id = fullProposalData.template_id;
 
-    try {
-      // Verify the last 4 digits of the client's phone using Supabase function
-      const { data: isValid, error } = await supabase
-        .rpc('verify_phone_digits', { 
-          p_proposal_id: proposalId, 
-          p_last_digits: digits 
-        });
-
-      if (error) throw error;
-
-      if (isValid) {
-        setIsVerified(true);
-        setShowVerification(false);
-        setVerificationError("");
-        toast({
-          title: "Verificação concluída",
-          description: "Acesso liberado para visualizar a proposta.",
-        });
-      } else {
-        setVerificationError("Os últimos 4 dígitos do seu celular não conferem.");
-      }
-    } catch (error) {
-      console.error('Error verifying phone digits:', error);
-      setVerificationError("Erro na verificação. Tente novamente.");
-    }
-  };
-
-  const createNotificationForLawyer = async (newStatus: 'aprovada' | 'rejeitada') => {
-    if (!proposal?.created_by) return;
-
-    try {
-      const statusText = newStatus === 'aprovada' ? 'aprovada' : 'rejeitada';
-      const { error } = await supabase.functions.invoke('create-notification', {
-        body: {
-          user_id: proposal.created_by,
-          title: `Proposta ${statusText}`,
-          message: `A proposta de ${proposal.client_name} foi ${statusText} pelo cliente.`,
-          type: 'proposal',
-          data: { 
-            proposal_id: proposalId,
-            client_name: proposal.client_name,
-            status: newStatus,
-            proposal_value: proposal.proposal_value
+          // If there's a template, fetch its definition
+          if (fullProposalData.template_id) {
+            const { data: templateData, error: templateError } = await supabase
+              .from('proposal_templates')
+              .select('*, template_fields(*)')
+              .eq('id', fullProposalData.template_id)
+              .single();
+            if (templateError) console.error("Could not fetch template definition", templateError);
+            else setTemplate(templateData as TemplateWithFields);
           }
         }
-      });
 
-      if (error) {
-        console.error('Error creating notification:', error);
+        const { data: lawyerData, error: lawyerError } = await supabase.rpc('get_lawyer_info', { p_proposal_id: fetchedProposal.id });
+        if (lawyerError) throw lawyerError;
+        setLawyer(lawyerData?.[0] || null);
+
+      } catch (err: any) {
+        setError(err.message || "Ocorreu um erro ao carregar a proposta.");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error sending notification to lawyer:', error);
+    };
+
+    fetchProposal();
+  }, [id, token]);
+
+  const handleAction = (type: 'approve' | 'reject') => {
+    if (proposal?.status !== 'pendente') {
+      toast({ title: "Ação não permitida", description: "Esta proposta já foi respondida.", variant: "destructive" });
+      return;
+    }
+    setAction(type);
+    setIsPhoneModalOpen(true);
+  };
+
+  const handlePhoneVerificationSuccess = async () => {
+    if (!action || !proposal) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.functions.invoke('update-proposal-status', {
+        body: {
+          proposalId: proposal.id,
+          status: action === 'approve' ? 'aprovada' : 'rejeitada',
+          accessToken: token,
+        }
+      });
+      if (error) throw error;
+
+      setProposal(prev => prev ? { ...prev, status: action === 'approve' ? 'aprovada' : 'rejeitada' } : null);
+      toast({ title: `Proposta ${action === 'approve' ? 'Aprovada' : 'Rejeitada'}!`, description: "Sua resposta foi registrada com sucesso." });
+    } catch (err: any) {
+      toast({ title: "Erro ao atualizar status", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+      setIsPhoneModalOpen(false);
+      setAction(null);
     }
   };
-  
-  if (!proposalId) {
-    setShowNotFound(true);
-    return <NotFound />;
-  }
 
-  if (showNotFound) {
-    return <NotFound />;
-  }
+  const formatCurrency = (value: number | string) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
+  const formatDate = (date: string) => format(new Date(date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   if (loading) {
+    return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center h-screen p-4">
+        <Alert variant="destructive" className="max-w-lg">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle>Erro de Acesso</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       </div>
     );
   }
 
-  if (!proposal && !loading) {
-    return <NotFound />;
-  }
+  if (!proposal) return null;
 
-  // Show verification modal for non-authenticated users
-  if (!user && !isVerified) {
-    return (
-      <>
-        <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background flex items-center justify-center">
-          <Card className="w-full max-w-md mx-4">
-            <CardContent className="p-6 text-center">
-              <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Proposta Protegida</h2>
-              <p className="text-muted-foreground mb-4">
-                Para acessar esta proposta, digite os últimos 4 dígitos do seu celular cadastrado.
-              </p>
-              <Button onClick={() => setShowVerification(true)} className="w-full">
-                Inserir Senha
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-        <PhoneVerificationModal
-          isOpen={showVerification}
-          clientPhone="****-****" // Don't expose phone number
-          onVerify={handlePhoneVerification}
-          onClose={() => setShowVerification(false)}
-          error={verificationError}
-        />
-      </>
-    );
-  }
+  const isExpired = new Date(proposal.valid_until) < new Date();
+  const canTakeAction = proposal.status === 'pendente' && !isExpired;
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+  const statusInfo = {
+    pendente: { text: "Pendente", icon: Clock, color: "text-warning-foreground", bg: "bg-warning" },
+    aprovada: { text: "Aprovada", icon: CheckCircle, color: "text-success-foreground", bg: "bg-success" },
+    rejeitada: { text: "Rejeitada", icon: XCircle, color: "text-destructive-foreground", bg: "bg-destructive" },
   };
-
-  const formatDate = (date: string | Date) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(dateObj);
-  };
-
-  const handleAccept = async () => {
-    try {
-      if (user) {
-        // Authenticated user - update in database directly
-        const { error } = await supabase
-          .from('proposals')
-          .update({ status: 'aprovada' })
-          .eq('id', proposalId);
-
-        if (error) throw error;
-      } else if (accessToken) {
-        // Public user with token - use Edge Function
-        const { data, error } = await supabase.functions.invoke('update-proposal-status', {
-          body: {
-            proposalId: proposalId,
-            accessToken: accessToken,
-            newStatus: 'aprovada'
-          }
-        });
-
-        if (error) throw error;
-        if (!data.success) throw new Error('Failed to update proposal status');
-      }
-
-      setStatus('aprovada');
-      
-      // Create notification for the lawyer who created the proposal
-      await createNotificationForLawyer('aprovada');
-      
-      toast({
-        title: "Proposta Aprovada!",
-        description: "Sua proposta foi aprovada com sucesso. Em breve entraremos em contato.",
-      });
-    } catch (error) {
-      console.error('Error accepting proposal:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a proposta.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleReject = async () => {
-    try {
-      if (user) {
-        // Authenticated user - update in database directly
-        const { error } = await supabase
-          .from('proposals')
-          .update({ status: 'rejeitada' })
-          .eq('id', proposalId);
-
-        if (error) throw error;
-      } else if (accessToken) {
-        // Public user with token - use Edge Function
-        const { data, error } = await supabase.functions.invoke('update-proposal-status', {
-          body: {
-            proposalId: proposalId,
-            accessToken: accessToken,
-            newStatus: 'rejeitada'
-          }
-        });
-
-        if (error) throw error;
-        if (!data.success) throw new Error('Failed to update proposal status');
-      }
-
-      setStatus('rejeitada');
-      
-      // Create notification for the lawyer who created the proposal
-      await createNotificationForLawyer('rejeitada');
-      
-      toast({
-        title: "Proposta Rejeitada",
-        description: "Sua resposta foi registrada. Obrigado pelo seu tempo.",
-      });
-    } catch (error) {
-      console.error('Error rejecting proposal:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a proposta.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const statusConfig = {
-    pendente: { color: "bg-warning text-warning-foreground", label: "Aguardando Resposta" },
-    aprovada: { color: "bg-success text-success-foreground", label: "Proposta Aprovada" },
-    rejeitada: { color: "bg-destructive text-destructive-foreground", label: "Proposta Rejeitada" }
-  };
+  const currentStatus = statusInfo[proposal.status as keyof typeof statusInfo];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-background">
-      {/* Hero Section - Improved mobile responsivity */}
-      <div className="hero-gradient text-white py-8 md:py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-4">
-            Proposta de Antecipação
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto px-2">
-            {proposal.description || "Seu futuro está nas suas mãos! Antecipe seus créditos judiciais e abra caminho para novas possibilidades."}
-          </p>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 -mt-8 pb-12">
-        {/* Status Card */}
-        <Card className="card-elegant mb-8 overflow-hidden" id={`proposal-view-${proposal.id}`}> {/* Add ID for PDF generation */}
-          <div className="bg-muted/50 px-6 py-4 border-b">
-            <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card className="overflow-hidden">
+          <CardHeader className="bg-card-foreground text-background p-6">
+            <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-muted-foreground">Cara(o) Sr(a).</p>
-                <h2 className="text-2xl font-bold text-foreground">
-                  {proposal.client_name}
-                </h2>
+                <CardTitle className="text-2xl md:text-3xl font-bold">Proposta Jurídica</CardTitle>
+                <CardDescription className="text-background/80">Processo de {proposal.client_name}</CardDescription>
               </div>
-              <Badge className={statusConfig[status].color}>
-                {statusConfig[status].label}
+              <Badge className={`${currentStatus.bg} ${currentStatus.color} text-sm`}>
+                <currentStatus.icon className="w-4 h-4 mr-2" />
+                {currentStatus.text}
               </Badge>
             </div>
-          </div>
-
-          <CardContent className="p-6">
-            <p className="text-muted-foreground mb-6">
-              Para a apresentação da proposta levamos em consideração o tipo de precatório, a ordem cronológica e o prazo estimado para recebimento. Diante do grande atraso previsto para o pagamento do seu crédito, antecipar o seu recebimento lhe trará o efetivo resultado do processo judicial e o poderá utilizar seu dinheiro da forma que quiser.
-            </p>
-
-            {/* Process Details */}
-            {(proposal.process_number || proposal.organization_name) && (
-            <div className="bg-card border border-border rounded-lg p-6 mb-6">
-              <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
-                PROCESSO DEVEDOR VALOR CEDÍVEL
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {proposal.process_number && (
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                    <FileText className="w-6 h-6 text-primary" />
-                  </div>
-                  <p className="font-semibold text-sm mb-1">Número do processo</p>
-                  <p className="text-sm text-muted-foreground">{proposal.process_number}</p>
-                </div>
-                )}
-                
-                {proposal.organization_name && (
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                    <Building className="w-6 h-6 text-primary" />
-                  </div>
-                  <p className="font-semibold text-sm mb-1">Nome do Órgão/Devedor</p>
-                  <p className="text-sm text-muted-foreground">{proposal.organization_name}</p>
-                </div>
-                )}
-                
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                    <DollarSign className="w-6 h-6 text-primary" />
-                  </div>
-                  <p className="font-semibold text-sm mb-1">Valor Cedível</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(proposal.cedible_value)}</p>
-                </div>
-              </div>
-            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            {isExpired && proposal.status === 'pendente' && (
+              <Alert variant="destructive"><XCircle className="h-4 w-4" /><AlertTitle>Proposta Expirada</AlertTitle><AlertDescription>Esta proposta expirou em {formatDate(proposal.valid_until)} e não pode mais ser aceita.</AlertDescription></Alert>
+            )}
+            {proposal.status !== 'pendente' && (
+              <Alert variant={proposal.status === 'aprovada' ? 'success' : 'destructive'}><currentStatus.icon className="h-4- w-4" /><AlertTitle>Proposta Respondida</AlertTitle><AlertDescription>Esta proposta foi {proposal.status} e não pode mais ser alterada.</AlertDescription></Alert>
             )}
 
-            {/* Proposal Approved */}
-            <div className="flex items-center justify-between bg-muted rounded-lg p-6 mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 flex items-center justify-center">
-                  {companyLogoUrl ? (
-                    <img src={companyLogoUrl} alt="Logo da empresa" className="w-full h-full object-contain" />
-                  ) : (
-                    <img src="/placeholder.svg" alt="Dinheiro" className="w-full h-full object-contain" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-bold text-xl mb-1">Proposta Aprovada</h3>
-                  <p className="text-sm text-muted-foreground">Pagamento garantido pelo {proposal.companies?.name || 'Banco'}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-primary">
-                  {formatCurrency(proposal.proposal_value)}
-                </p>
-              </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <InfoSection icon={User} title="Cliente" value={proposal.client_name} />
+              <InfoSection icon={Briefcase} title="Processo Nº" value={proposal.process_number || 'N/A'} />
+              <InfoSection icon={Building} title="Órgão/Devedor" value={proposal.organization_name || 'N/A'} />
+              <InfoSection icon={Calendar} title="Validade da Proposta" value={formatDate(proposal.valid_until)} />
             </div>
 
-            <div className="text-center text-sm text-muted-foreground mb-8">
-              <p>A presente proposta não tem força pré-contratual, estando sujeita à aprovação da saúde fiscal do cedente e análise processual.</p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card className="bg-muted/50"><CardContent className="p-4 text-center"><p className="text-sm text-muted-foreground">Valor Cedível</p><p className="text-2xl font-bold">{formatCurrency(proposal.cedible_value)}</p></CardContent></Card>
+              <Card className="bg-primary/10 border-primary"><CardContent className="p-4 text-center"><p className="text-sm text-primary">Valor da Proposta</p><p className="text-2xl font-bold text-primary">{formatCurrency(proposal.proposal_value)}</p></CardContent></Card>
             </div>
 
-            {/* Action Buttons */}
-            {status === 'pendente' && (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
-                  onClick={handleAccept}
-                  size="lg"
-                  className="bg-success hover:bg-success/90 text-success-foreground px-8"
-                >
-                  <Check className="w-5 h-5 mr-2" />
-                  Aceitar Proposta
-                </Button>
-                <Button 
-                  onClick={handleReject}
-                  variant="outline"
-                  size="lg"
-                  className="px-8"
-                >
-                  <X className="w-5 h-5 mr-2" />
-                  Recusar Proposta
-                </Button>
-              </div>
+            {proposal.description && (
+              <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><FileText className="w-5 h-5 text-primary" />Descrição da Proposta</CardTitle></CardHeader><CardContent className="prose prose-sm max-w-none text-muted-foreground"><p>{proposal.description}</p></CardContent></Card>
             )}
 
-            {status === 'aprovada' && (
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-success flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-success-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-success mb-2">Proposta Aprovada!</h3>
-                <p className="text-muted-foreground">Em breve entraremos em contato para prosseguir com o processo.</p>
-              </div>
+            {template && proposal.custom_fields_data && (
+              <Card>
+                <CardHeader><CardTitle className="text-lg flex items-center gap-2"><FileText className="w-5 h-5 text-primary" />Detalhes Adicionais</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {template.template_fields.sort((a, b) => a.order - b.order).map(field => {
+                    const value = proposal.custom_fields_data?.[field.field_name];
+                    if (!value) return null;
+                    return (
+                      <div key={field.id} className="grid grid-cols-3 gap-4 text-sm">
+                        <strong className="col-span-1 text-foreground">{field.field_label}:</strong>
+                        <p className="col-span-2 text-muted-foreground">{field.field_type === 'date' ? formatDate(value) : value}</p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
             )}
 
-            {status === 'rejeitada' && (
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center mx-auto mb-4">
-                  <X className="w-8 h-8 text-destructive-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-destructive mb-2">Proposta Recusada</h3>
-                <p className="text-muted-foreground">Agradecemos pela consideração. Caso mude de opinião, entre em contato conosco.</p>
-              </div>
+            {lawyer && (
+              <Card className="bg-muted/50">
+                <CardHeader><CardTitle className="text-lg">Seu Contato</CardTitle></CardHeader>
+                <CardContent className="flex items-center gap-4">
+                  <img src={lawyer.avatar_url || '/placeholder.svg'} alt="Advogado" className="w-16 h-16 rounded-full" />
+                  <div>
+                    <p className="font-bold text-foreground">{lawyer.first_name} {lawyer.last_name}</p>
+                    <p className="text-sm text-muted-foreground">{lawyer.email}</p>
+                    {lawyer.phone && <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1"><Phone className="w-3 h-3" /> {lawyer.phone}</p>}
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </CardContent>
-        </Card>
-
-        {/* Footer with Lawyer Information */}
-        <div className="mt-8 bg-muted/30 rounded-lg p-6">
-          <div className="text-center text-sm text-muted-foreground mb-6">
-            <p className="flex items-center justify-center gap-2 mb-2">
-              <Calendar className="w-4 h-4" />
-              Válida até: {formatDate(proposal.valid_until)}
-            </p>
-          </div>
-
-          {/* Lawyer Information in Footer */}
-          {lawyerInfo && (
-            <div className="border-t border-border pt-6">
-              <h3 className="text-center text-lg font-semibold mb-4 text-foreground flex items-center justify-center gap-2">
-                <User className="w-5 h-5 text-primary" />
-                Advogado Responsável
-              </h3>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-                <Avatar className="w-20 h-20">
-                  <AvatarImage src={lawyerInfo.avatar_url} alt="Foto do advogado" />
-                  <AvatarFallback className="text-xl font-semibold">
-                    {lawyerInfo.first_name?.[0]?.toUpperCase() || 'A'}
-                    {lawyerInfo.last_name?.[0]?.toUpperCase() || ''}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-center sm:text-left">
-                  <h4 className="font-bold text-lg text-foreground mb-3">
-                    {lawyerInfo.first_name} {lawyerInfo.last_name}
-                  </h4>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <Mail className="w-4 h-4 text-primary" />
-                      <span>{lawyerInfo.email}</span>
-                    </div>
-                    {lawyerInfo.phone && (
-                      <div className="flex items-center justify-center sm:justify-start gap-2">
-                        <Phone className="w-4 h-4 text-primary" />
-                        <span>{lawyerInfo.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+          {canTakeAction && (
+            <CardFooter className="p-6 bg-muted/50 border-t flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button size="lg" className="w-full sm:w-auto bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleAction('approve')}><ThumbsUp className="w-5 h-5 mr-2" />Aprovar Proposta</Button>
+              <Button size="lg" className="w-full sm:w-auto" variant="destructive" onClick={() => handleAction('reject')}><ThumbsDown className="w-5 h-5 mr-2" />Rejeitar Proposta</Button>
+            </CardFooter>
           )}
-
-          <div className="text-center text-sm text-muted-foreground mt-6 pt-4 border-t border-border">
-            <p>© 2025 {proposal.companies?.name || 'LegalProp'} - Plataforma de Propostas Jurídicas</p>
-          </div>
-        </div>
-        {/* PDF Download Button for the entire view */}
-        <div className="text-center mt-8">
-          <PdfGeneratorButton
-            rootElementId={`proposal-view-${proposal.id}`}
-            fileName={`proposta-${proposal.client_name.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
-            buttonText="Baixar Proposta em PDF"
-            variant="default"
-            size="lg"
-          />
-        </div>
+        </Card>
       </div>
+      {proposal && <PhoneVerificationModal isOpen={isPhoneModalOpen} onClose={() => setIsPhoneModalOpen(false)} proposalId={proposal.id} onVerified={handlePhoneVerificationSuccess} isSubmitting={isSubmitting} />}
     </div>
   );
 };
+
+const InfoSection = ({ icon: Icon, title, value }: { icon: React.ElementType, title: string, value: string }) => (
+  <div className="flex items-start gap-3">
+    <div className="p-2 bg-muted rounded-full mt-1"><Icon className="w-4 h-4 text-muted-foreground" /></div>
+    <div>
+      <p className="text-sm text-muted-foreground">{title}</p>
+      <p className="font-semibold text-foreground">{value}</p>
+    </div>
+  </div>
+);
 
 export default ProposalView;
