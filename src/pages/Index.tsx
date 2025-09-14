@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { type Proposal } from "@/components/ProposalCard";
 import { ProposalFilters, type FilterOptions } from "@/components/ProposalFilters";
-import { ProposalList } from "@/components/ProposalList";
+import { ResponsiveProposalList } from "@/components/ResponsiveProposalList";
 import { ProposalEditModal } from "@/components/ProposalEditModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -181,18 +181,15 @@ const Index = () => {
     }
 
     try {
-      console.log('Proposal object:', proposal);
-      console.log('Client phone:', proposal.clientPhone);
-      
       // Generate secure access token
       const { data: tokenData, error } = await supabase
         .rpc('create_proposal_access_token', { p_proposal_id: proposal.id });
       
       if (error) throw error;
       
-      const proposalUrl = `http://localhost:8080/proposta/${proposal.id}?token=${tokenData}`; // Alterado para localhost
+      const proposalUrl = `${window.location.origin}/proposta/${proposal.id}?token=${tokenData}`;
       
-      // Create WhatsApp message with proposal link using client's WhatsApp number
+      // Create WhatsApp message with proposal link
       const message = encodeURIComponent(
         `Olá ${proposal.clientName}! 
 
@@ -204,15 +201,11 @@ ${proposalUrl}
 Equipe EnvPRO 📋⚖️`
       );
       
-      // Use client's phone number for WhatsApp
       const phoneNumber = proposal.clientPhone?.replace(/[^\d]/g, '') || "";
-      console.log('Formatted phone number:', phoneNumber);
       
       const whatsappUrl = phoneNumber 
-        ? `https://wa.me/${phoneNumber}?text=${message}`
+        ? `https://wa.me/+55${phoneNumber}?text=${message}`
         : `https://wa.me/?text=${message}`;
-      
-      console.log('WhatsApp URL:', whatsappUrl);
       
       window.open(whatsappUrl, '_blank');
 
@@ -244,8 +237,83 @@ Equipe EnvPRO 📋⚖️`
     }
   };
 
+  const handleShareLink = async (proposal: Proposal) => {
+    try {
+      const { data: tokenData, error } = await supabase
+        .rpc('create_proposal_access_token', { p_proposal_id: proposal.id });
+      
+      if (error) throw error;
+      
+      const shareUrl = `${window.location.origin}/proposta/${proposal.id}?token=${tokenData}`;
+      await navigator.clipboard.writeText(shareUrl);
+      
+      toast({
+        title: "Link copiado!",
+        description: "O link seguro da proposta foi copiado para a área de transferência.",
+      });
+
+      await supabase.rpc('create_audit_log', {
+        p_action_type: 'SHARE_LINK_GENERATED',
+        p_table_name: 'proposals',
+        p_record_id: proposal.id,
+        p_new_data: { action: 'share_link_generated' }
+      });
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar o link. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadPDF = async (proposal: Proposal) => {
+    try {
+      const { data: responseData, error } = await supabase.functions.invoke('generate-proposal-pdf', {
+        body: { proposalId: proposal.id }
+      });
+
+      if (error) throw error;
+
+      let pdfBlob;
+      if (responseData instanceof ArrayBuffer) {
+        pdfBlob = new Blob([responseData], { type: 'application/pdf' });
+      } else if (typeof responseData === 'string') {
+        const binaryString = atob(responseData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+      } else {
+        pdfBlob = new Blob([new Uint8Array(responseData)], { type: 'application/pdf' });
+      }
+      
+      const url = window.URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposta-${proposal.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF gerado com sucesso",
+        description: "O arquivo PDF foi baixado automaticamente.",
+      });
+    } catch (error: any) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Erro ao gerar PDF",
+        description: `Não foi possível gerar o PDF. Erro: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleViewProposal = (proposal: Proposal) => {
-    // Open proposal view in new tab
     window.open(`/proposta/${proposal.id}`, '_blank');
   };
 
@@ -273,7 +341,6 @@ Equipe EnvPRO 📋⚖️`
         description: `A proposta de ${deletingProposal.clientName} foi removida com sucesso.`,
       });
 
-      // Create notification for deleted proposal
       if (user) {
         try {
           await supabase.functions.invoke('create-notification', {
@@ -290,7 +357,6 @@ Equipe EnvPRO 📋⚖️`
         }
       }
 
-      // Refresh proposals list
       fetchProposals();
       setDeletingProposal(null);
     } catch (error) {
@@ -304,11 +370,9 @@ Equipe EnvPRO 📋⚖️`
   };
 
   const handleUpdateProposal = async () => {
-    // Refresh proposals list after update
     await fetchProposals();
     setEditingProposal(null);
     
-    // Create notification for updated proposal
     if (user && editingProposal) {
       try {
         await supabase.functions.invoke('create-notification', {
@@ -329,10 +393,8 @@ Equipe EnvPRO 📋⚖️`
     }
   };
 
-  // Filter proposals based on active filters
   const filteredProposals = useMemo(() => {
     return proposals.filter((proposal) => {
-      // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         const matchesSearch = 
@@ -344,17 +406,14 @@ Equipe EnvPRO 📋⚖️`
         if (!matchesSearch) return false;
       }
 
-      // Status filter
       if (filters.status.length > 0 && !filters.status.includes(proposal.status)) {
         return false;
       }
 
-      // Receiver type filter
       if (filters.receiverType.length > 0 && !filters.receiverType.includes(proposal.receiverType)) {
         return false;
       }
 
-      // Date range filter
       if (filters.dateFrom && proposal.createdAt < filters.dateFrom) {
         return false;
       }
@@ -366,7 +425,6 @@ Equipe EnvPRO 📋⚖️`
         }
       }
 
-      // Value range filter
       if (filters.minValue && proposal.proposalValue < filters.minValue) {
         return false;
       }
@@ -390,7 +448,6 @@ Equipe EnvPRO 📋⚖️`
       </div>
 
       <div className="space-y-6">
-        {/* Filters */}
         <ProposalFilters
           filters={filters}
           onFiltersChange={setFilters}
@@ -398,19 +455,20 @@ Equipe EnvPRO 📋⚖️`
           filteredCount={filteredProposals.length}
         />
 
-        {/* Proposals List */}
         {loading ? (
           <div className="flex items-center justify-center p-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <ProposalList
+          <ResponsiveProposalList
             proposals={filteredProposals}
             onSendEmail={handleSendEmail}
             onSendWhatsApp={handleSendWhatsApp}
             onView={handleViewProposal}
             onEdit={handleEditProposal}
             onDelete={handleDeleteProposal}
+            onShareLink={handleShareLink}
+            onDownloadPDF={handleDownloadPDF}
           />
         )}
       </div>

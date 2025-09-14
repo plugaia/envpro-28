@@ -4,8 +4,6 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Mail, MessageCircle, Eye, MoreHorizontal, Calendar, DollarSign, Share, Download, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface Proposal {
   id: string;
@@ -31,6 +29,8 @@ interface ProposalCardProps {
   onView: (proposal: Proposal) => void;
   onEdit: (proposal: Proposal) => void;
   onDelete: (proposal: Proposal) => void;
+  onShareLink: (proposal: Proposal) => void;
+  onDownloadPDF: (proposal: Proposal) => void;
 }
 
 const statusColors = {
@@ -51,122 +51,22 @@ const receiverTypeLabels = {
   precatorio: "Precatório",
 };
 
-export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, onEdit, onDelete }: ProposalCardProps) {
-  const { toast } = useToast();
+export function ProposalCard({ 
+  proposal, 
+  onSendEmail, 
+  onSendWhatsApp, 
+  onView, 
+  onEdit, 
+  onDelete,
+  onShareLink,
+  onDownloadPDF
+}: ProposalCardProps) {
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
-  };
-
-  const handleShareLink = async () => {
-    try {
-      // Generate secure access token
-      const { data: tokenData, error } = await supabase
-        .rpc('create_proposal_access_token', { p_proposal_id: proposal.id });
-      
-      if (error) throw error;
-      
-      const shareUrl = `${window.location.origin}/proposta/${proposal.id}?token=${tokenData}`;
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        toast({
-          title: "Link copiado!",
-          description: "O link seguro da proposta foi copiado para a área de transferência.",
-        });
-      }).catch(() => {
-        toast({
-          title: "Erro ao copiar",
-          description: "Não foi possível copiar o link. Tente novamente.",
-          variant: "destructive",
-        });
-      });
-    } catch (error) {
-      console.error('Error generating share link:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível gerar o link seguro.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSendEmail = async (proposal: Proposal) => {
-    try {
-      const response = await supabase.functions.invoke('send-proposal-email', {
-        body: { proposalId: proposal.id }
-      });
-
-      if (response.error) throw response.error;
-
-      toast({
-        title: "Email enviado!",
-        description: `Proposta enviada para ${proposal.clientEmail}`,
-      });
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast({
-        title: "Erro ao enviar email",
-        description: "Não foi possível enviar o email. Tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownloadPDF = async (proposal: Proposal) => {
-    try {
-      console.log('Generating PDF for proposal:', proposal.id);
-      
-      const response = await supabase.functions.invoke('generate-proposal-pdf', {
-        body: { proposalId: proposal.id }
-      });
-
-      console.log('PDF response:', response);
-
-      if (response.error) {
-        console.error('PDF generation error:', response.error);
-        throw response.error;
-      }
-
-      // Convert the response data to proper format
-      let pdfBlob;
-      if (response.data instanceof ArrayBuffer) {
-        pdfBlob = new Blob([response.data], { type: 'application/pdf' });
-      } else if (typeof response.data === 'string') {
-        // If it's base64 or string, convert it
-        const binaryString = atob(response.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
-      } else {
-        // Fallback - treat as raw data
-        pdfBlob = new Blob([new Uint8Array(response.data)], { type: 'application/pdf' });
-      }
-      
-      const url = window.URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `proposta-${proposal.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: "PDF gerado com sucesso",
-        description: "O arquivo PDF foi baixado automaticamente.",
-      });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast({
-        title: "Erro ao gerar PDF",
-        description: `Não foi possível gerar o PDF. Erro: ${error.message}`,
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -239,7 +139,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleSendEmail(proposal)}
+              onClick={() => onSendEmail(proposal)}
               className="flex items-center gap-1"
               disabled={!proposal.canViewClientDetails}
             >
@@ -259,7 +159,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
             <Button
               size="sm"
               variant="outline"
-              onClick={handleShareLink}
+              onClick={() => onShareLink(proposal)}
               className="flex items-center gap-1"
             >
               <Share className="w-3 h-3" />
@@ -268,7 +168,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleDownloadPDF(proposal)}
+              onClick={() => onDownloadPDF(proposal)}
               className="flex items-center gap-1"
             >
               <Download className="w-3 h-3" />
