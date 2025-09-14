@@ -75,7 +75,7 @@ export default function TemplateDesigner() {
     };
 
     fetchTemplate();
-  }, [templateId, toast]);
+  }, [templateId]);
 
   const handleAddBlock = (block: LayoutBlock) => {
     setBlocks((prev) => [...prev, block]);
