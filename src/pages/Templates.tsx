@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { LayoutTemplate, Plus, Edit, Trash2, X, GripVertical } from "lucide-react";
+import { LayoutTemplate, Plus, Edit, Trash2, X, GripVertical, Copy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +25,7 @@ const Templates = () => {
   const [templates, setTemplates] = useState<TemplateWithFields[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<TemplateWithFields | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<Partial<TemplateWithFields> | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<TemplateWithFields | null>(null);
 
   const fetchTemplates = async () => {
@@ -54,9 +54,27 @@ const Templates = () => {
     }
   }, [isAdmin, user]);
 
-  const handleOpenDialog = (template: TemplateWithFields | null) => {
+  const handleOpenDialog = (template: Partial<TemplateWithFields> | null) => {
     setEditingTemplate(template);
     setShowDialog(true);
+  };
+
+  const handleDuplicate = (templateToDuplicate: TemplateWithFields) => {
+    const newTemplateSeed: Partial<TemplateWithFields> = {
+      ...templateToDuplicate,
+      name: `${templateToDuplicate.name} (Cópia)`,
+      // Ensure fields are treated as new by removing their original IDs
+      template_fields: templateToDuplicate.template_fields.map(f => {
+        const newField: Partial<TemplateField> = { ...f };
+        delete newField.id;
+        delete newField.template_id;
+        return newField;
+      })
+    };
+    // Remove the template ID to ensure it's created as a new entry
+    delete newTemplateSeed.id;
+    
+    handleOpenDialog(newTemplateSeed);
   };
 
   const handleDelete = async () => {
@@ -112,6 +130,7 @@ const Templates = () => {
                   <TableCell className="font-medium">{template.name}</TableCell>
                   <TableCell>{template.template_fields.length}</TableCell>
                   <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleDuplicate(template)}><Copy className="w-4 h-4 mr-2" /> Duplicar</Button>
                     <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(template)}><Edit className="w-4 h-4 mr-2" /> Editar</Button>
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeletingTemplate(template)}><Trash2 className="w-4 h-4 mr-2" /> Excluir</Button>
                   </TableCell>
@@ -138,7 +157,7 @@ const generateFieldName = (label: string) => {
 interface TemplateFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  template: TemplateWithFields | null;
+  template: Partial<TemplateWithFields> | null;
   onSave: () => void;
 }
 
@@ -147,7 +166,7 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
   const { toast } = useToast();
   const [name, setName] = useState(template?.name || "");
   const [description, setDescription] = useState(template?.description || "");
-  const [fields, setFields] = useState<Partial<TemplateField>[]>(template?.template_fields.sort((a, b) => a.order - b.order) || []);
+  const [fields, setFields] = useState<Partial<TemplateField>[]>(template?.template_fields?.sort((a, b) => a.order - b.order) || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addField = () => {
@@ -216,7 +235,7 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
       }));
 
       // Delete fields that were removed
-      const fieldsToDelete = template?.template_fields.filter(oldField => !fieldsToSave.some(newField => newField.id === oldField.id)).map(f => f.id);
+      const fieldsToDelete = template?.id && template.template_fields ? template.template_fields.filter(oldField => !fieldsToSave.some(newField => newField.id === oldField.id)).map(f => f.id) : [];
       if (fieldsToDelete && fieldsToDelete.length > 0) {
         const { error: deleteError } = await supabase.from('template_fields').delete().in('id', fieldsToDelete);
         if (deleteError) throw deleteError;
