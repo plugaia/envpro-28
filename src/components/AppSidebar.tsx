@@ -45,31 +45,31 @@ export function AppSidebar() {
   }: {
     isActive: boolean;
   }) => isActive ? "bg-primary text-primary-foreground font-medium" : "hover:bg-accent";
-  return <Sidebar className={`${collapsed ? "w-14" : "w-60"} bg-sidebar border-r border-sidebar-border`} collapsible="icon">
-      <SidebarContent className="bg-sidebar">
-        {/* Logo with Collapse Button */}
-        <div className="p-4 border-b border-sidebar-border bg-sidebar">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1">
-              {!collapsed && <>
-                  <img src={logoIcon} alt="EnvPRO Icon" className="h-8 w-8" />
-                  <div>
-                    <h2 className="font-bold text-lg text-sidebar-foreground">EnvPRO</h2>
-                    <p className="text-xs text-sidebar-foreground/70">Propostas Jurídicas</p>
-                  </div>
-                </>}
-              {collapsed && <div className="w-8 h-8 flex items-center justify-center mx-auto">
-                  <img src={logoIcon} alt="EnvPRO" className="w-8 h-8 object-contain" />
-                </div>}
-            </div>
-            
-            {/* Collapse Arrow Button */}
-            <SidebarTrigger className="ml-auto p-1.5 h-8 w-8 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-colors">
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </SidebarTrigger>
+  return <Sidebar className={`${collapsed ? "w-14" : "w-60"} h-screen sticky top-0 bg-sidebar border-r border-sidebar-border flex flex-col`} collapsible="icon">
+      {/* Logo with Collapse Button */}
+      <div className="p-4 border-b border-sidebar-border bg-sidebar">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-1">
+            {!collapsed && <>
+                <img src={logoIcon} alt="EnvPRO Icon" className="h-8 w-8" />
+                <div>
+                  <h2 className="font-bold text-lg text-sidebar-foreground">EnvPRO</h2>
+                  <p className="text-xs text-sidebar-foreground/70">Propostas Jurídicas</p>
+                </div>
+              </>}
+            {collapsed && <div className="w-8 h-8 flex items-center justify-center mx-auto">
+                <img src={logoIcon} alt="EnvPRO" className="w-8 h-8 object-contain" />
+              </div>}
           </div>
+          
+          {/* Collapse Arrow Button */}
+          <SidebarTrigger className="ml-auto p-1.5 h-8 w-8 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-colors">
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </SidebarTrigger>
         </div>
+      </div>
 
+      <SidebarContent className="bg-sidebar flex-1 overflow-y-auto">
         <SidebarGroup className="bg-sidebar">
           <SidebarGroupLabel className={`text-sidebar-foreground/70 text-xs font-medium ${collapsed ? "sr-only" : "px-4 py-2"}`}>
             Menu Principal
