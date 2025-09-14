@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { LayoutTemplate, Plus, Edit, Trash2, X, GripVertical, Copy, Blocks } from "lucide-react";
@@ -262,18 +262,48 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
       
       if (templateError) throw templateError;
 
-      const fieldsToSave = fields.map((field, index) => ({
-        id: field.id?.startsWith('new-') ? undefined : field.id, template_id: savedTemplate.id, field_label: field.field_label, field_name: field.field_name || generateFieldName(field.field_label || ''), field_type: field.field_type, is_required: field.is_required, order: index,
-      }));
-
-      const fieldsToDelete = template?.id && template.template_fields ? template.template_fields.filter(oldField => !fieldsToSave.some(newField => newField.id === oldField.id)).map(f => f.id) : [];
+      // Handle fields deletion
+      const fieldsToDelete = template?.id && template.template_fields 
+        ? template.template_fields.filter(oldField => !fields.some(newField => newField.id === oldField.id)).map(f => f.id) 
+        : [];
       if (fieldsToDelete.length > 0) {
         const { error: deleteError } = await supabase.from('template_fields').delete().in('id', fieldsToDelete);
         if (deleteError) throw deleteError;
       }
 
-      const { error: fieldsError } = await supabase.from('template_fields').upsert(fieldsToSave);
-      if (fieldsError) throw fieldsError;
+      // Handle fields insert/update
+      const newFields = fields
+        .filter(f => f.id?.startsWith('new-'))
+        .map((field, index) => ({
+          template_id: savedTemplate.id,
+          field_label: field.field_label || '',
+          field_name: field.field_name || generateFieldName(field.field_label || ''),
+          field_type: field.field_type,
+          is_required: field.is_required,
+          order: fields.findIndex(f => f.id === field.id)
+        }));
+
+      const updatedFields = fields
+        .filter(f => f.id && !f.id.startsWith('new-'))
+        .map((field, index) => ({
+          id: field.id,
+          template_id: savedTemplate.id,
+          field_label: field.field_label || '',
+          field_name: field.field_name || generateFieldName(field.field_label || ''),
+          field_type: field.field_type,
+          is_required: field.is_required,
+          order: fields.findIndex(f => f.id === field.id)
+        }));
+
+      if (newFields.length > 0) {
+        const { error: insertError } = await supabase.from('template_fields').insert(newFields);
+        if (insertError) throw insertError;
+      }
+
+      if (updatedFields.length > 0) {
+        const { error: updateError } = await supabase.from('template_fields').upsert(updatedFields);
+        if (updateError) throw updateError;
+      }
 
       toast({ title: "Template salvo!", description: "O template foi salvo com sucesso." });
       onSave();
@@ -288,7 +318,10 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader><DialogTitle>{template?.id ? "Editar Template" : "Novo Template"}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{template?.id ? "Editar Template" : "Novo Template"}</DialogTitle>
+          <DialogDescription>Crie e configure os campos e o layout do seu template de proposta.</DialogDescription>
+        </DialogHeader>
         <div className="flex-1 overflow-y-auto p-1 pr-4 space-y-6">
           <div className="space-y-2"><Label htmlFor="template-name">Nome do Template</Label><Input id="template-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Proposta de Honorários" /></div>
           <div className="space-y-2"><Label htmlFor="template-description">Texto Base da Proposta (Descrição)</Label><Textarea id="template-description" value={description || ''} onChange={(e) => setDescription(e.target.value)} placeholder="Insira o texto padrão que aparecerá na descrição da proposta..." rows={5} /></div>
