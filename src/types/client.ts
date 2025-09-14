@@ -1,35 +1,9 @@
 export interface Client {
   id: string;
-  firstName: string;
-  lastName: string;
+  company_id: string;
+  name: string;
   email: string;
-  whatsapp: string;
-  createdAt: Date;
+  phone: string;
+  created_at: string;
+  updated_at: string;
 }
-
-export const mockClients: Client[] = [
-  {
-    id: "1",
-    firstName: "Valdenir",
-    lastName: "Lourenço Martins",
-    email: "valdenir@email.com",
-    whatsapp: "+5567999123456",
-    createdAt: new Date("2025-01-01"),
-  },
-  {
-    id: "2", 
-    firstName: "Ketllen Samara",
-    lastName: "Rodrigues Lemos Romanini",
-    email: "ketllen@email.com",
-    whatsapp: "+5567999654321",
-    createdAt: new Date("2025-01-02"),
-  },
-  {
-    id: "3",
-    firstName: "Joana",
-    lastName: "Darc Ferreira Borges",
-    email: "joana@email.com",
-    whatsapp: "+5567999789012",
-    createdAt: new Date("2025-01-03"),
-  },
-];
