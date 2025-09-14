@@ -15,7 +15,7 @@ import { type Database } from "@/integrations/supabase/types";
 
 type Template = Database['public']['Tables']['proposal_templates']['Row'];
 type TemplateField = Database['public']['Tables']['template_fields']['Row'];
-type TemplateWithFields = Template & { template_fields: TemplateField[] };
+type TemplateWithFields = Template & { template_fields: TemplateField[], layout_config: any[] | null };
 
 interface ProposalEditModalProps {
   proposal: Proposal;

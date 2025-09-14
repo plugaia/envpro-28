@@ -22,7 +22,7 @@ import { type Database } from "@/integrations/supabase/types";
 type Client = Database['public']['Tables']['clients']['Row'];
 type Template = Database['public']['Tables']['proposal_templates']['Row'];
 type TemplateField = Database['public']['Tables']['template_fields']['Row'];
-type TemplateWithFields = Template & { template_fields: TemplateField[] };
+type TemplateWithFields = Template & { template_fields: TemplateField[], layout_config: any[] | null };
 
 interface ProposalFormProps {
   onClose: () => void;
