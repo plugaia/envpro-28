@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { type Proposal } from "./ProposalCard";
 import InputMask from 'react-input-mask';
 import { type Database } from "@/integrations/supabase/types";
+import { CustomFieldInput } from "./CustomFieldInput";
 
 type Template = Database['public']['Tables']['proposal_templates']['Row'];
 type TemplateField = Database['public']['Tables']['template_fields']['Row'];
@@ -335,14 +336,12 @@ export function ProposalEditModal({ proposal, isOpen, onClose, onUpdate }: Propo
                 <h3 className="font-medium text-foreground">Campos Personalizados: {template.name}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {template.template_fields.sort((a, b) => a.order - b.order).map(field => (
-                    <div key={field.id} className="space-y-2">
-                      <Label htmlFor={`custom-${field.field_name}`}>{field.field_label}{field.is_required && '*'}</Label>
-                      {field.field_type === 'textarea' ? (
-                        <Textarea id={`custom-${field.field_name}`} value={formData.customFieldData[field.field_name] || ''} onChange={(e) => handleCustomFieldChange(field.field_name, e.target.value)} required={field.is_required} />
-                      ) : (
-                        <Input id={`custom-${field.field_name}`} type={field.field_type} value={formData.customFieldData[field.field_name] || ''} onChange={(e) => handleCustomFieldChange(field.field_name, e.target.value)} required={field.is_required} />
-                      )}
-                    </div>
+                    <CustomFieldInput
+                      key={field.id}
+                      field={field}
+                      value={formData.customFieldData[field.field_name]}
+                      onChange={(value) => handleCustomFieldChange(field.field_name, value)}
+                    />
                   ))}
                 </div>
               </div>
