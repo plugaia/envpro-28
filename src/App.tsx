@@ -18,6 +18,7 @@ import TemplateDesigner from "./pages/TemplateDesigner";
 import NotFound from "./pages/NotFound";
 import TeamInvitation from "./pages/TeamInvitation";
 import { useState, useEffect } from "react";
+import { ProposalForm } from "@/components/ProposalForm";
 
 const queryClient = new QueryClient();
 
