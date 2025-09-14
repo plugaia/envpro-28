@@ -14,6 +14,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Clientes from "./pages/Clientes";
 import Relatorios from "./pages/Relatorios";
 import Templates from "./pages/Templates";
+import TemplateDesigner from "./pages/TemplateDesigner";
 import NotFound from "./pages/NotFound";
 import TeamInvitation from "./pages/TeamInvitation";
 
@@ -74,6 +75,7 @@ const AppRoutes = () => {
             </Layout>
           </ProtectedRoute>
         } />
+        <Route path="/templates/:templateId/design" element={<TemplateDesigner />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

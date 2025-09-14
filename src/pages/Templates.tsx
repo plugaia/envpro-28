@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, LayoutTemplate, MoreHorizontal } from "lucide-react";
+import { Plus, Edit, Trash2, LayoutTemplate, MoreHorizontal, Brush } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TemplateBuilder } from "@/components/TemplateBuilder";
@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Link } from "react-router-dom";
 
 // Define types for clarity
 export interface TemplateField {
@@ -173,6 +174,12 @@ export default function Templates() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
+                          <DropdownMenuItem asChild>
+                            <Link to={`/templates/${template.id}/design`}>
+                              <Brush className="mr-2 h-4 w-4" />
+                              Design
+                            </Link>
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleOpenBuilder(template)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Editar

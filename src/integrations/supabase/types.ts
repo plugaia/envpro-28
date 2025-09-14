@@ -265,6 +265,47 @@ export type Database = {
           },
         ]
       }
+      proposal_templates: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          description: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          layout_config: Json | null
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          layout_config?: Json | null
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          layout_config?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_tokens: {
         Row: {
           created_at: string | null
@@ -441,6 +482,50 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_fields: {
+        Row: {
+          id: string
+          template_id: string
+          field_label: string
+          field_name: string
+          field_type: "text" | "textarea" | "number" | "date" | "email" | "phone"
+          is_required: boolean
+          order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          field_label: string
+          field_name: string
+          field_type: "text" | "textarea" | "number" | "date" | "email" | "phone"
+          is_required?: boolean
+          order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          field_label?: string
+          field_name?: string
+          field_type?: "text" | "textarea" | "number" | "date" | "email" | "phone"
+          is_required?: boolean
+          order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_templates"
             referencedColumns: ["id"]
           },
         ]
