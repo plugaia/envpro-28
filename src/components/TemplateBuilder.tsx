@@ -124,15 +124,18 @@ export function TemplateBuilder({ isOpen, onClose, onSave, templateToEdit }: Tem
         if (deleteError) throw deleteError;
       }
 
-      const fieldsToUpsert = fields.map((field, index) => ({
-        id: field.id,
-        template_id: templateId,
-        field_label: field.field_label,
-        field_name: slugify(field.field_label),
-        field_type: field.field_type,
-        is_required: field.is_required,
-        order: index,
-      }));
+      const fieldsToUpsert = fields.map((field, index) => {
+        const baseField = {
+          template_id: templateId,
+          field_label: field.field_label,
+          field_name: slugify(field.field_label),
+          field_type: field.field_type,
+          is_required: field.is_required,
+          order: index,
+        };
+        // Only include 'id' if it exists (for existing fields)
+        return field.id ? { ...baseField, id: field.id } : baseField;
+      });
 
       if (fieldsToUpsert.length > 0) {
         const { error: fieldsError } = await supabase
