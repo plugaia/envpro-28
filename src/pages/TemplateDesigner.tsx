@@ -61,10 +61,15 @@ export default function TemplateDesigner() {
 
       // Carrega layout_config se existir e normaliza IDs dos blocos
       const parsedRaw = Array.isArray(templateData.layout_config) ? (templateData.layout_config as any[]) : [];
-      const normalized: LayoutBlock[] = parsedRaw.map((b: any, idx: number) => ({
-        ...b,
-        id: (typeof b?.id === 'string' && b.id.length > 0) ? b.id : `blk_${idx}_${newId()}`
-      }));
+      const normalized: LayoutBlock[] = parsedRaw.map((b: any, idx: number) => {
+        // Garante que cada bloco tenha um ID estável. Se o ID do banco for inválido, gera um novo.
+        // Este ID gerado será estável para a sessão atual do componente.
+        const stableId = (typeof b?.id === 'string' && b.id.length > 0) ? b.id : `blk_${idx}_${newId()}`;
+        return {
+          ...b,
+          id: stableId
+        };
+      });
       setBlocks(normalized);
       setLoading(false);
     };
