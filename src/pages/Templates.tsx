@@ -1,34 +1,299 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { LayoutTemplate } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { LayoutTemplate, Plus, Edit, Trash2, X, GripVertical } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { type Database } from "@/integrations/supabase/types";
+
+type Template = Database['public']['Tables']['proposal_templates']['Row'];
+type TemplateField = Database['public']['Tables']['template_fields']['Row'];
+type TemplateWithFields = Template & { template_fields: TemplateField[] };
 
 const Templates = () => {
+  const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
+  const [templates, setTemplates] = useState<TemplateWithFields[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<TemplateWithFields | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState<TemplateWithFields | null>(null);
+
+  const fetchTemplates = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('proposal_templates')
+        .select(`*, template_fields(*)`)
+        .order('name');
+      
+      if (error) throw error;
+      setTemplates(data as TemplateWithFields[] || []);
+    } catch (error: any) {
+      toast({ title: "Erro ao carregar templates", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchTemplates();
+    } else {
+      setLoading(false);
+    }
+  }, [isAdmin, user]);
+
+  const handleOpenDialog = (template: TemplateWithFields | null) => {
+    setEditingTemplate(template);
+    setShowDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingTemplate) return;
+    try {
+      const { error } = await supabase.from('proposal_templates').delete().eq('id', deletingTemplate.id);
+      if (error) throw error;
+      toast({ title: "Template excluído", description: "O template foi removido com sucesso." });
+      setDeletingTemplate(null);
+      fetchTemplates();
+    } catch (error: any) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Acesso Negado</CardTitle>
+            <CardDescription>Apenas administradores podem gerenciar templates.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Contate o administrador da sua empresa para obter acesso a esta funcionalidade.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground">Templates de Propostas</h2>
+          <p className="text-base text-muted-foreground">Crie e gerencie seus templates para agilizar a criação de propostas.</p>
+        </div>
+        <Button onClick={() => handleOpenDialog(null)}><Plus className="w-4 h-4 mr-2" /> Novo Template</Button>
+      </div>
+
       <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <LayoutTemplate className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle>Templates de Propostas</CardTitle>
-              <CardDescription>
-                Crie e gerencie seus templates para agilizar a criação de propostas.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-16 border-2 border-dashed rounded-lg">
-            <LayoutTemplate className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">Funcionalidade em Breve</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Aqui você poderá criar, editar e gerenciar seus templates de propostas.
-            </p>
-          </div>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>Nome do Template</TableHead><TableHead>Nº de Campos</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {templates.length > 0 ? templates.map(template => (
+                <TableRow key={template.id}>
+                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell>{template.template_fields.length}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(template)}><Edit className="w-4 h-4 mr-2" /> Editar</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeletingTemplate(template)}><Trash2 className="w-4 h-4 mr-2" /> Excluir</Button>
+                  </TableCell>
+                </TableRow>
+              )) : (
+                <TableRow><TableCell colSpan={3} className="text-center h-24">Nenhum template criado ainda.</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
+
+      {showDialog && <TemplateFormDialog isOpen={showDialog} onClose={() => setShowDialog(false)} template={editingTemplate} onSave={fetchTemplates} />}
+      <DeleteConfirmDialog isOpen={!!deletingTemplate} onClose={() => setDeletingTemplate(null)} onConfirm={handleDelete} title="Excluir Template" description={`Tem certeza que deseja excluir o template "${deletingTemplate?.name}"? Esta ação não pode ser desfeita.`} />
     </div>
+  );
+};
+
+// Helper function to generate a machine-readable name
+const generateFieldName = (label: string) => {
+  return label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+};
+
+interface TemplateFormDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  template: TemplateWithFields | null;
+  onSave: () => void;
+}
+
+const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormDialogProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [name, setName] = useState(template?.name || "");
+  const [description, setDescription] = useState(template?.description || "");
+  const [fields, setFields] = useState<Partial<TemplateField>[]>(template?.template_fields.sort((a, b) => a.order - b.order) || []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addField = () => {
+    const newField: Partial<TemplateField> = {
+      id: `new-${Date.now()}`,
+      field_label: "",
+      field_name: "",
+      field_type: "text",
+      is_required: false,
+      order: fields.length,
+    };
+    setFields([...fields, newField]);
+  };
+
+  const updateField = (index: number, updatedField: Partial<TemplateField>) => {
+    const newFields = [...fields];
+    const oldLabel = newFields[index].field_label;
+    newFields[index] = { ...newFields[index], ...updatedField };
+    // Auto-generate field_name if label changes
+    if (updatedField.field_label !== undefined && updatedField.field_label !== oldLabel) {
+      newFields[index].field_name = generateFieldName(updatedField.field_label);
+    }
+    setFields(newFields);
+  };
+
+  const removeField = (index: number) => {
+    setFields(fields.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!user) return;
+    if (!name) {
+      toast({ title: "Erro de validação", description: "O nome do template é obrigatório.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const { data: profile } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).single();
+      if (!profile) throw new Error("Perfil não encontrado.");
+
+      // Upsert template
+      const { data: savedTemplate, error: templateError } = await supabase
+        .from('proposal_templates')
+        .upsert({
+          id: template?.id,
+          company_id: profile.company_id,
+          name,
+          description,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+      
+      if (templateError) throw templateError;
+
+      // Process fields
+      const fieldsToSave = fields.map((field, index) => ({
+        id: field.id?.startsWith('new-') ? undefined : field.id,
+        template_id: savedTemplate.id,
+        field_label: field.field_label,
+        field_name: field.field_name || generateFieldName(field.field_label || ''),
+        field_type: field.field_type,
+        is_required: field.is_required,
+        order: index,
+      }));
+
+      // Delete fields that were removed
+      const fieldsToDelete = template?.template_fields.filter(oldField => !fieldsToSave.some(newField => newField.id === oldField.id)).map(f => f.id);
+      if (fieldsToDelete && fieldsToDelete.length > 0) {
+        const { error: deleteError } = await supabase.from('template_fields').delete().in('id', fieldsToDelete);
+        if (deleteError) throw deleteError;
+      }
+
+      // Upsert current fields
+      const { error: fieldsError } = await supabase.from('template_fields').upsert(fieldsToSave);
+      if (fieldsError) throw fieldsError;
+
+      toast({ title: "Template salvo!", description: "O template foi salvo com sucesso." });
+      onSave();
+      onClose();
+    } catch (error: any) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{template ? "Editar Template" : "Novo Template"}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto p-1 pr-4 space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="template-name">Nome do Template</Label>
+            <Input id="template-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Proposta de Honorários" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="template-description">Texto Base da Proposta (Descrição)</Label>
+            <Textarea id="template-description" value={description || ''} onChange={(e) => setDescription(e.target.value)} placeholder="Insira o texto padrão que aparecerá na descrição da proposta..." rows={5} />
+          </div>
+          <div>
+            <h3 className="font-medium mb-2">Campos Personalizados</h3>
+            <div className="space-y-3">
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/50">
+                  <GripVertical className="w-5 h-5 mt-8 text-muted-foreground cursor-grab" />
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Rótulo do Campo</Label>
+                      <Input value={field.field_label} onChange={(e) => updateField(index, { field_label: e.target.value })} placeholder="Ex: Valor da Causa" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo do Campo</Label>
+                      <Select value={field.field_type} onValueChange={(value) => updateField(index, { field_type: value as any })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text">Texto Curto</SelectItem>
+                          <SelectItem value="textarea">Texto Longo</SelectItem>
+                          <SelectItem value="number">Número</SelectItem>
+                          <SelectItem value="date">Data</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Obrigatório</Label>
+                      <div className="flex items-center h-10">
+                        <Switch checked={field.is_required} onCheckedChange={(checked) => updateField(index, { is_required: checked })} />
+                      </div>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="mt-6 text-destructive hover:text-destructive" onClick={() => removeField(index)}><X className="w-4 h-4" /></Button>
+                </div>
+              ))}
+              <Button variant="outline" onClick={addField}><Plus className="w-4 h-4 mr-2" /> Adicionar Campo</Button>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="outline" disabled={isSubmitting}>Cancelar</Button></DialogClose>
+          <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar Template"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

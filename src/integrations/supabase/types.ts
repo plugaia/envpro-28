@@ -305,6 +305,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          custom_fields_data: Json | null
           description: string | null
           id: string
           organization_name: string | null
@@ -312,6 +313,7 @@ export type Database = {
           proposal_value: number
           receiver_type: string
           status: string
+          template_id: string | null
           updated_at: string
           valid_until: string
         }
@@ -322,6 +324,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          custom_fields_data?: Json | null
           description?: string | null
           id?: string
           organization_name?: string | null
@@ -329,6 +332,7 @@ export type Database = {
           proposal_value: number
           receiver_type: string
           status?: string
+          template_id?: string | null
           updated_at?: string
           valid_until: string
         }
@@ -339,6 +343,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          custom_fields_data?: Json | null
           description?: string | null
           id?: string
           organization_name?: string | null
@@ -346,6 +351,7 @@ export type Database = {
           proposal_value?: number
           receiver_type?: string
           status?: string
+          template_id?: string | null
           updated_at?: string
           valid_until?: string
         }
@@ -355,6 +361,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -438,6 +451,88 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "team_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_fields: {
+        Row: {
+          created_at: string
+          field_label: string
+          field_name: string
+          field_type: Database["public"]["Enums"]["template_field_type"]
+          id: string
+          is_required: boolean
+          order: number
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_label: string
+          field_name: string
+          field_type: Database["public"]["Enums"]["template_field_type"]
+          id?: string
+          is_required?: boolean
+          order?: number
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_label?: string
+          field_name?: string
+          field_type?: Database["public"]["Enums"]["template_field_type"]
+          id?: string
+          is_required?: boolean
+          order?: number
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_templates_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -658,6 +753,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      template_field_type: "text" | "textarea" | "number" | "date"
       user_role: "admin" | "collaborator"
     }
     CompositeTypes: {
@@ -787,6 +883,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      template_field_type: ["text", "textarea", "number", "date"],
       user_role: ["admin", "collaborator"],
     },
   },
