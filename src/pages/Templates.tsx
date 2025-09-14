@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { LayoutTemplate, Plus, Edit, Trash2, X, GripVertical, Copy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -323,6 +325,19 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
             <Label htmlFor="template-description">Texto Base da Proposta (Descrição)</Label>
             <Textarea id="template-description" value={description || ''} onChange={(e) => setDescription(e.target.value)} placeholder="Insira o texto padrão que aparecerá na descrição da proposta..." rows={5} />
           </div>
+          <Alert>
+            <AlertTitle className="text-sm font-semibold">Variáveis Disponíveis</AlertTitle>
+            <AlertDescription className="text-xs">
+              Use as variáveis abaixo no texto. Elas serão substituídas pelos dados da proposta.
+              <div className="flex flex-wrap gap-1 mt-2">
+                <Badge variant="outline">{'{{client_name}}'}</Badge>
+                <Badge variant="outline">{'{{process_number}}'}</Badge>
+                <Badge variant="outline">{'{{organization_name}}'}</Badge>
+                <Badge variant="outline">{'{{cedible_value}}'}</Badge>
+                <Badge variant="outline">{'{{proposal_value}}'}</Badge>
+              </div>
+            </AlertDescription>
+          </Alert>
           <div>
             <h3 className="font-medium mb-2">Campos Personalizados</h3>
             <div className="space-y-3">

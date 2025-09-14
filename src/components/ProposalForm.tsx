@@ -41,6 +41,7 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
   const [templates, setTemplates] = useState<TemplateWithFields[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [customFieldData, setCustomFieldData] = useState<{ [key: string]: any }>({});
+  const [rawDescription, setRawDescription] = useState("");
 
   const [formData, setFormData] = useState({
     clientName: "",
@@ -60,6 +61,20 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
       fetchTemplates();
     }
   }, [user, useExistingClient]);
+
+  useEffect(() => {
+    if (!selectedTemplateId) return;
+
+    const parsedDescription = rawDescription
+      .replace(/{{client_name}}/g, formData.clientName || '')
+      .replace(/{{process_number}}/g, formData.processNumber || '')
+      .replace(/{{organization_name}}/g, formData.organizationName || '')
+      .replace(/{{cedible_value}}/g, formData.cedibleValue || 'R$ 0,00')
+      .replace(/{{proposal_value}}/g, formData.proposalValue || 'R$ 0,00');
+
+    setFormData(prev => ({ ...prev, description: parsedDescription }));
+
+  }, [formData.clientName, formData.processNumber, formData.organizationName, formData.cedibleValue, formData.proposalValue, rawDescription, selectedTemplateId]);
 
   const fetchClients = async () => {
     try {
@@ -110,13 +125,15 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
     setSelectedTemplateId(newTemplateId);
     const template = templates.find(t => t.id === newTemplateId);
     if (template) {
-      setFormData(prev => ({ ...prev, description: template.description || "" }));
+      const templateDescription = template.description || "";
+      setRawDescription(templateDescription);
       const initialCustomData: { [key: string]: any } = {};
       template.template_fields.forEach(field => {
         initialCustomData[field.field_name] = '';
       });
       setCustomFieldData(initialCustomData);
     } else {
+      setRawDescription("");
       setFormData(prev => ({ ...prev, description: "" }));
       setCustomFieldData({});
     }
@@ -209,7 +226,7 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
 
   const formatCurrency = (value: string) => {
     const numericValue = value.replace(/[^\d]/g, '');
-    if (!numericValue) return "R$ 0,00";
+    if (!numericValue) return "";
     const floatValue = parseFloat(numericValue) / 100;
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(floatValue);
   };
@@ -298,7 +315,8 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição (será preenchida pelo template)</Label>
-                <Textarea id="description" placeholder="Descrição adicional da proposta..." value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} rows={5} />
+                <Textarea id="description" placeholder="Descrição adicional da proposta..." value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} rows={5} readOnly={!!selectedTemplateId} />
+                {selectedTemplateId && <p className="text-xs text-muted-foreground mt-1">A descrição é preenchida automaticamente. Para editar, desmarque o template ou altere o conteúdo na página de Templates.</p>}
               </div>
             </div>
 
