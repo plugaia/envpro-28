@@ -12,7 +12,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SidebarPalette from '@/components/template-designer/SidebarPalette';
 import CanvasBlock from '@/components/template-designer/CanvasBlock';
 import { LayoutBlock } from '@/components/template-designer/types';
-// ADIÇÃO: importar gerador de id
 import { newId } from '@/components/template-designer/types';
 
 interface TemplateData extends ProposalTemplate {
@@ -27,6 +26,8 @@ export default function TemplateDesigner() {
   const [blocks, setBlocks] = useState<LayoutBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const sortableIds = useMemo(() => blocks.map((b) => b.id), [blocks]);
 
   useEffect(() => {
     if (!templateId) return;
@@ -59,11 +60,8 @@ export default function TemplateDesigner() {
 
       setTemplate(templateData);
 
-      // Carrega layout_config se existir e normaliza IDs dos blocos
       const parsedRaw = Array.isArray(templateData.layout_config) ? (templateData.layout_config as any[]) : [];
       const normalized: LayoutBlock[] = parsedRaw.map((b: any, idx: number) => {
-        // Garante que cada bloco tenha um ID estável. Se o ID do banco for inválido, gera um novo.
-        // Este ID gerado será estável para a sessão atual do componente.
         const stableId = (typeof b?.id === 'string' && b.id.length > 0) ? b.id : `blk_${idx}_${newId()}`;
         return {
           ...b,
@@ -75,7 +73,7 @@ export default function TemplateDesigner() {
     };
 
     fetchTemplate();
-  }, [templateId]);
+  }, [templateId, toast]);
 
   const handleAddBlock = (block: LayoutBlock) => {
     setBlocks((prev) => [...prev, block]);
@@ -138,8 +136,6 @@ export default function TemplateDesigner() {
     return <div className="p-6 text-center">Modelo não encontrado.</div>;
   }
 
-  const sortableIds = useMemo(() => blocks.map((b) => b.id), [blocks]);
-
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <div className="h-full flex flex-col">
@@ -166,7 +162,6 @@ export default function TemplateDesigner() {
 
           <main className="col-span-9 bg-muted/50 border rounded-lg p-4 overflow-y-auto">
             <div className="bg-white min-h-[70vh] w-full max-w-4xl mx-auto shadow-lg p-8 space-y-3">
-              {/* Mantém SortableContext sempre presente para árvore consistente */}
               <SortableContext key={templateId} items={sortableIds} strategy={verticalListSortingStrategy}>
                 {blocks.length === 0 ? (
                   <Card className="p-8 text-center text-muted-foreground">
