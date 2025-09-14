@@ -106,8 +106,9 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplateId(templateId);
-    const template = templates.find(t => t.id === templateId);
+    const newTemplateId = templateId === 'none' ? '' : templateId;
+    setSelectedTemplateId(newTemplateId);
+    const template = templates.find(t => t.id === newTemplateId);
     if (template) {
       setFormData(prev => ({ ...prev, description: template.description || "" }));
       const initialCustomData: { [key: string]: any } = {};
@@ -274,7 +275,7 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
                 <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
                   <SelectTrigger id="template"><SelectValue placeholder="Selecione um template..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {templates.map(template => (<SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
