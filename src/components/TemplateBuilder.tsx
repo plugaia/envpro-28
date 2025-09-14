@@ -124,24 +124,43 @@ export function TemplateBuilder({ isOpen, onClose, onSave, templateToEdit }: Tem
         if (deleteError) throw deleteError;
       }
 
-      const fieldsToUpsert = fields.map((field, index) => {
-        const baseField = {
-          template_id: templateId,
-          field_label: field.field_label,
-          field_name: slugify(field.field_label),
-          field_type: field.field_type,
-          is_required: field.is_required,
-          order: index,
-        };
-        // Only include 'id' if it exists (for existing fields)
-        return field.id ? { ...baseField, id: field.id } : baseField;
-      });
+      // Separate fields into new and existing
+      const newFields = fields.filter(f => !f.id);
+      const fieldsToUpdate = fields.filter(f => f.id);
 
-      if (fieldsToUpsert.length > 0) {
-        const { error: fieldsError } = await supabase
+      // Prepare fields for update (existing fields)
+      const updatePayload = fieldsToUpdate.map((field, index) => ({
+        id: field.id, // Must include id for update
+        template_id: templateId,
+        field_label: field.field_label,
+        field_name: slugify(field.field_label),
+        field_type: field.field_type,
+        is_required: field.is_required,
+        order: index,
+      }));
+
+      if (updatePayload.length > 0) {
+        const { error: updateError } = await supabase
           .from('template_fields')
-          .upsert(fieldsToUpsert);
-        if (fieldsError) throw fieldsError;
+          .upsert(updatePayload);
+        if (updateError) throw updateError;
+      }
+
+      // Prepare fields for insert (new fields)
+      const insertPayload = newFields.map((field, index) => ({
+        template_id: templateId,
+        field_label: field.field_label,
+        field_name: slugify(field.field_label),
+        field_type: field.field_type,
+        is_required: field.is_required,
+        order: fieldsToUpdate.length + index, // Adjust order to follow existing fields
+      }));
+
+      if (insertPayload.length > 0) {
+        const { error: insertError } = await supabase
+          .from('template_fields')
+          .insert(insertPayload); // Use insert for new fields
+        if (insertError) throw insertError;
       }
 
       toast({ title: "Modelo salvo com sucesso!" });
