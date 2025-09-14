@@ -1,10 +1,11 @@
-import { FileText, Plus, BarChart3, Settings, Users, Mail, Moon, Sun, Monitor, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Plus, BarChart3, Settings, Users, Mail, Moon, Sun, Monitor, ChevronLeft, ChevronRight, LayoutTemplate } from "lucide-react";
 const logoIcon = "/lovable-uploads/636d6934-d768-4999-a23b-9d1f4a733139.png";
 import { NavLink, useLocation } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+
 const items = [{
   title: "Propostas",
   url: "/",
@@ -18,10 +19,15 @@ const items = [{
   url: "/clientes",
   icon: Users
 }, {
+  title: "Templates",
+  url: "/templates",
+  icon: LayoutTemplate
+}, {
   title: "Configurações",
   url: "/configuracoes",
   icon: Settings
 }];
+
 export function AppSidebar() {
   const {
     state

@@ -13,6 +13,7 @@ import ProposalView from "./pages/ProposalView";
 import Configuracoes from "./pages/Configuracoes";
 import Clientes from "./pages/Clientes";
 import Relatorios from "./pages/Relatorios";
+import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
 import TeamInvitation from "./pages/TeamInvitation";
 
@@ -63,6 +64,13 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <Layout>
               <Relatorios />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/templates" element={
+          <ProtectedRoute>
+            <Layout>
+              <Templates />
             </Layout>
           </ProtectedRoute>
         } />
