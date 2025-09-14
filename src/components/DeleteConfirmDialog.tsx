@@ -1,13 +1,5 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean;
@@ -15,7 +7,8 @@ interface DeleteConfirmDialogProps {
   onConfirm: () => void;
   title: string;
   description: string;
-  loading?: boolean;
+  confirmText?: string;
+  cancelText?: string;
 }
 
 export function DeleteConfirmDialog({
@@ -24,7 +17,8 @@ export function DeleteConfirmDialog({
   onConfirm,
   title,
   description,
-  loading = false
+  confirmText = "Confirmar",
+  cancelText = "Cancelar",
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -34,13 +28,11 @@ export function DeleteConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onConfirm}
-            disabled={loading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            {loading ? "Excluindo..." : "Excluir"}
+          <AlertDialogCancel asChild>
+            <Button variant="outline" onClick={onClose}>{cancelText}</Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button variant="destructive" onClick={onConfirm}>{confirmText}</Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
