@@ -44,12 +44,6 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
     clientName: "",
     clientEmail: "", 
     clientPhone: "",
-    processNumber: "",
-    organizationName: "",
-    cedibleValue: "",
-    proposalValue: "",
-    receiverType: "advogado" as "advogado" | "autor" | "precatorio",
-    description: "",
   });
 
   const [templates, setTemplates] = useState<ProposalTemplate[]>([]);
@@ -194,16 +188,6 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
       nameSchema.parse(formData.clientName);
       emailSchema.parse(formData.clientEmail);
       phoneSchema.parse(formData.clientPhone);
-      
-      const cedibleValue = parseFloat(formData.cedibleValue.replace(/[^\d,]/g, '').replace(',', '.'));
-      const proposalValue = parseFloat(formData.proposalValue.replace(/[^\d,]/g, '').replace(',', '.'));
-      
-      numericSchema(0.01).parse(cedibleValue);
-      numericSchema(0.01).parse(proposalValue);
-      
-      if (formData.processNumber) textSchema(10, 50).parse(formData.processNumber);
-      if (formData.organizationName) textSchema(2, 200).parse(formData.organizationName);
-      if (formData.description) textSchema(0, 2000).parse(formData.description);
     } catch (validationError: any) {
       toast({
         title: "Dados inválidos",
@@ -213,7 +197,7 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
       return;
     }
     
-    if (!formData.clientName || !formData.clientEmail || !formData.clientPhone || !formData.cedibleValue || !formData.proposalValue) {
+    if (!formData.clientName || !formData.clientEmail || !formData.clientPhone) {
       toast({
         title: "Erro de validação",
         description: "Por favor, preencha todos os campos obrigatórios.",
@@ -267,12 +251,12 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
       const proposalData = {
         company_id: profile.company_id,
         client_name: formData.clientName,
-        process_number: formData.processNumber || null,
-        organization_name: formData.organizationName || null,
-        cedible_value: parseFloat(formData.cedibleValue.replace(/[^\d,]/g, '').replace(',', '.')),
-        proposal_value: parseFloat(formData.proposalValue.replace(/[^\d,]/g, '').replace(',', '.')),
-        receiver_type: formData.receiverType,
-        description: formData.description || null,
+        process_number: null,
+        organization_name: null,
+        cedible_value: 0,
+        proposal_value: 0,
+        receiver_type: "advogado",
+        description: null,
         valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         template_id: selectedTemplateId || null,
         custom_fields_data: customFieldsData,
@@ -315,24 +299,6 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (value: string) => {
-    const numericValue = value.replace(/[^\d]/g, '');
-    if (!numericValue) return "R$ 0,00";
-    const formattedValue = (parseInt(numericValue) / 100).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
-    return formattedValue;
-  };
-
-  const handleCurrencyChange = (field: 'cedibleValue' | 'proposalValue') => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      [field]: formatCurrency(value)
-    }));
   };
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
@@ -495,42 +461,6 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
                 </div>
               </div>
             )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="processNumber">Número do processo:</Label>
-                <Input id="processNumber" placeholder="Informe o número do processo..." value={formData.processNumber} onChange={(e) => setFormData(prev => ({ ...prev, processNumber: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="organizationName">Nome do Órgão/Devedor</Label>
-                <Input id="organizationName" placeholder="Nome da instituição" value={formData.organizationName} onChange={(e) => setFormData(prev => ({ ...prev, organizationName: e.target.value }))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cedibleValue">Valor Cedível*</Label>
-                <Input id="cedibleValue" placeholder="R$ 0,00" value={formData.cedibleValue} onChange={handleCurrencyChange('cedibleValue')} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="proposalValue">Valor da proposta Aprovada*</Label>
-                <Input id="proposalValue" placeholder="R$ 0,00" value={formData.proposalValue} onChange={handleCurrencyChange('proposalValue')} required />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label>Selecione o tipo do recebedor*</Label>
-              <RadioGroup value={formData.receiverType} onValueChange={(value: "advogado" | "autor" | "precatorio") => setFormData(prev => ({ ...prev, receiverType: value }))} className="flex flex-col space-y-2">
-                <div className="flex items-center space-x-2"><RadioGroupItem value="advogado" id="advogado" /><Label htmlFor="advogado">Advogado</Label></div>
-                <div className="flex items-center space-x-2"><RadioGroupItem value="autor" id="autor" /><Label htmlFor="autor">Autor</Label></div>
-                <div className="flex items-center space-x-2"><RadioGroupItem value="precatorio" id="precatorio" /><Label htmlFor="precatorio">Precatório</Label></div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição (opcional)</Label>
-              <Textarea id="description" placeholder="Descrição adicional da proposta..." value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} />
-            </div>
 
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary-hover text-primary-foreground px-8">
