@@ -7,6 +7,7 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { ProposalForm } from "@/components/ProposalForm";
 
 const Index = () => {
   const { toast } = useToast();
@@ -15,6 +16,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
+  const [showProposalForm, setShowProposalForm] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     search: "",
     status: [],
@@ -97,10 +99,9 @@ const Index = () => {
   };
 
   const handleSubmitProposal = async () => {
-    // Refresh proposals list after creating a new one
+    setShowProposalForm(false);
     await fetchProposals();
     
-    // Create notification for new proposal
     if (user) {
       try {
         const { error } = await supabase.functions.invoke('create-notification', {
@@ -434,6 +435,13 @@ Equipe EnvPRO 📋⚖️`
             : ""
         }
       />
+      
+      {showProposalForm && (
+        <ProposalForm
+          onClose={() => setShowProposalForm(false)}
+          onSubmit={handleSubmitProposal}
+        />
+      )}
     </div>
   );
 };
