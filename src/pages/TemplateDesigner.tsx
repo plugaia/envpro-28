@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SidebarPalette from '@/components/template-designer/SidebarPalette';
 import CanvasBlock from '@/components/template-designer/CanvasBlock';
 import { LayoutBlock } from '@/components/template-designer/types';
+// ADIÇÃO: importar gerador de id
+import { newId } from '@/components/template-designer/types';
 
 interface TemplateData extends ProposalTemplate {
   fields: TemplateField[];
@@ -57,9 +59,13 @@ export default function TemplateDesigner() {
 
       setTemplate(templateData);
 
-      // Carrega layout_config se existir
-      const parsed = Array.isArray(templateData.layout_config) ? templateData.layout_config as LayoutBlock[] : [];
-      setBlocks(parsed);
+      // Carrega layout_config se existir e normaliza IDs dos blocos
+      const parsedRaw = Array.isArray(templateData.layout_config) ? (templateData.layout_config as any[]) : [];
+      const normalized: LayoutBlock[] = parsedRaw.map((b: any, idx: number) => ({
+        ...b,
+        id: (typeof b?.id === 'string' && b.id.length > 0) ? b.id : `blk_${idx}_${newId()}`
+      }));
+      setBlocks(normalized);
       setLoading(false);
     };
 
@@ -155,12 +161,13 @@ export default function TemplateDesigner() {
 
           <main className="col-span-9 bg-muted/50 border rounded-lg p-4 overflow-y-auto">
             <div className="bg-white min-h-[70vh] w-full max-w-4xl mx-auto shadow-lg p-8 space-y-3">
-              {blocks.length === 0 ? (
-                <Card className="p-8 text-center text-muted-foreground">
-                  Arraste para reordenar e use a paleta ao lado para adicionar elementos.
-                </Card>
-              ) : (
-                <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+              {/* Mantém SortableContext sempre presente para árvore consistente */}
+              <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+                {blocks.length === 0 ? (
+                  <Card className="p-8 text-center text-muted-foreground">
+                    Arraste para reordenar e use a paleta ao lado para adicionar elementos.
+                  </Card>
+                ) : (
                   <div className="space-y-3">
                     {blocks.map((block) => (
                       <CanvasBlock
@@ -171,8 +178,8 @@ export default function TemplateDesigner() {
                       />
                     ))}
                   </div>
-                </SortableContext>
-              )}
+                )}
+              </SortableContext>
             </div>
           </main>
         </div>
