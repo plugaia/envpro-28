@@ -7,8 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// IMPORTANT: Make sure to set RESEND_API_KEY in your Supabase project's Edge Function secrets
+// IMPORTANTE: Certifique-se de que RESEND_API_KEY e FRONTEND_URL estão configurados nos segredos da Edge Function.
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') ?? '')
+const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'http://localhost:8080';
 
 interface SendInvitationRequest {
   email: string;
@@ -25,8 +26,8 @@ serve(async (req) => {
   }
 
   try {
-    // Use the Service Role Key for this function.
-    // The function is protected by being called after a secure RPC by an admin.
+    // Use a chave de serviço para esta função.
+    // A função é protegida por ser chamada após uma RPC segura por um administrador.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -36,12 +37,12 @@ serve(async (req) => {
 
     if (!email || !firstName || !lastName || !invitationToken || !inviterId) {
       return new Response(
-        JSON.stringify({ error: 'Email, first name, last name, invitation token, and inviter ID are required' }),
+        JSON.stringify({ error: 'Email, nome, sobrenome, token de convite e ID do convidante são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get inviter's profile and company using the provided inviterId
+    // Obter perfil e empresa do convidante usando o inviterId fornecido
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*, companies(*)')
@@ -49,9 +50,9 @@ serve(async (req) => {
       .single();
 
     if (profileError || !profile) {
-      console.error('Failed to get user profile:', profileError);
+      console.error('Falha ao obter perfil do usuário:', profileError);
       return new Response(
-        JSON.stringify({ error: 'Failed to get inviter profile' }),
+        JSON.stringify({ error: 'Falha ao obter perfil do convidante' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -59,11 +60,11 @@ serve(async (req) => {
     const companyName = profile.companies?.name || 'LegalProp';
     const inviterName = `${profile.first_name} ${profile.last_name}`;
     
-    // Use the correct invitation token for the registration URL
-    const registrationUrl = `http://localhost:8080/convite/${invitationToken}`;
+    // Use a URL do frontend para o link de registro
+    const registrationUrl = `${frontendUrl}/convite/${invitationToken}`;
 
-    // Send invitation email
-    console.log('Attempting to send email with Resend...');
+    // Enviar e-mail de convite
+    console.log('Tentando enviar e-mail com Resend...');
     
     const emailResponse = await resend.emails.send({
       from: `${companyName} <onboarding@resend.dev>`,
@@ -120,7 +121,7 @@ serve(async (req) => {
       `,
     });
 
-    console.log('Invitation email sent successfully:', emailResponse);
+    console.log('E-mail de convite enviado com sucesso:', emailResponse);
 
     return new Response(
       JSON.stringify({ 
@@ -132,9 +133,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Team invitation error:', error);
+    console.error('Erro no convite de equipe:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to send team invitation', details: error.message }),
+      JSON.stringify({ error: 'Falha ao enviar convite de equipe', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
