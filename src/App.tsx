@@ -15,7 +15,6 @@ import Clientes from "./pages/Clientes";
 import Relatorios from "./pages/Relatorios";
 import NotFound from "./pages/NotFound";
 import TeamInvitation from "./pages/TeamInvitation";
-import Templates from "./pages/Templates";
 
 const queryClient = new QueryClient();
 
@@ -64,13 +63,6 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <Layout>
               <Relatorios />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        <Route path="/templates" element={
-          <ProtectedRoute>
-            <Layout>
-              <Templates />
             </Layout>
           </ProtectedRoute>
         } />

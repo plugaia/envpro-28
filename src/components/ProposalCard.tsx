@@ -1,12 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Mail, MessageCircle, Eye, MoreHorizontal, Calendar, DollarSign, Share, Edit, Trash2 } from "lucide-react";
+import { Mail, MessageCircle, Eye, MoreHorizontal, Calendar, DollarSign, Share, Download, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { PdfGeneratorButton } from "./PdfGeneratorButton"; // Import the new component
 
 export interface Proposal {
   id: string;
@@ -93,8 +92,85 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
     }
   };
 
+  const handleSendEmail = async (proposal: Proposal) => {
+    try {
+      const response = await supabase.functions.invoke('send-proposal-email', {
+        body: { proposalId: proposal.id }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Email enviado!",
+        description: `Proposta enviada para ${proposal.clientEmail}`,
+      });
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast({
+        title: "Erro ao enviar email",
+        description: "Não foi possível enviar o email. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadPDF = async (proposal: Proposal) => {
+    try {
+      console.log('Generating PDF for proposal:', proposal.id);
+      
+      const response = await supabase.functions.invoke('generate-proposal-pdf', {
+        body: { proposalId: proposal.id }
+      });
+
+      console.log('PDF response:', response);
+
+      if (response.error) {
+        console.error('PDF generation error:', response.error);
+        throw response.error;
+      }
+
+      // Convert the response data to proper format
+      let pdfBlob;
+      if (response.data instanceof ArrayBuffer) {
+        pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      } else if (typeof response.data === 'string') {
+        // If it's base64 or string, convert it
+        const binaryString = atob(response.data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+      } else {
+        // Fallback - treat as raw data
+        pdfBlob = new Blob([new Uint8Array(response.data)], { type: 'application/pdf' });
+      }
+      
+      const url = window.URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposta-${proposal.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF gerado com sucesso",
+        description: "O arquivo PDF foi baixado automaticamente.",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Erro ao gerar PDF",
+        description: `Não foi possível gerar o PDF. Erro: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <Card className="card-elegant hover:shadow-lg transition-all duration-300" id={`proposal-card-${proposal.id}`}>
+    <Card className="card-elegant hover:shadow-lg transition-all duration-300">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -163,7 +239,7 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onSendEmail(proposal)}
+              onClick={() => handleSendEmail(proposal)}
               className="flex items-center gap-1"
               disabled={!proposal.canViewClientDetails}
             >
@@ -189,16 +265,15 @@ export function ProposalCard({ proposal, onSendEmail, onSendWhatsApp, onView, on
               <Share className="w-3 h-3" />
               Link
             </Button>
-            {/* PDF Download Button */}
-            <PdfGeneratorButton
-              rootElementId={`proposal-card-${proposal.id}`} // Unique ID for each proposal card
-              fileName={`proposta-${proposal.clientName.replace(/\s/g, '-')}-${proposal.id.slice(0, 4)}`}
-              buttonText="Baixar PDF"
-              variant="outline"
+            <Button
               size="sm"
+              variant="outline"
+              onClick={() => handleDownloadPDF(proposal)}
+              className="flex items-center gap-1"
             >
               <Download className="w-3 h-3" />
-            </PdfGeneratorButton>
+              PDF
+            </Button>
           </div>
           <div className="flex gap-1">
             <Button

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Header } from "@/components/Header";
 import { ProposalForm } from "@/components/ProposalForm";
@@ -27,7 +27,7 @@ export function Layout({ children }: LayoutProps) {
         <AppSidebar />
         <div className="flex-1 flex flex-col transition-all duration-200 ease-in-out">
           <Header onNewProposal={handleNewProposal} />
-          <main className="flex-1 p-4 md:p-6 lg:p-8 bg-main-gradient min-h-0 transition-all duration-200 ease-in-out">
+          <main className="flex-1 p-4 md:p-6 lg:p-8 bg-muted/30 min-h-0 transition-all duration-200 ease-in-out">
             <div className="max-w-7xl mx-auto h-full">
               {children}
             </div>

@@ -7,13 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Plus, Search, UserCheck } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, UserCheck, Mail, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { teamInvitationSchema } from "@/lib/validation";
 
 interface User {
   id: string;
@@ -54,6 +53,7 @@ export function UserSettings() {
     try {
       setLoading(true);
       
+      // Fetch all users from profiles table (includes role)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -77,9 +77,10 @@ export function UserSettings() {
         throw profilesError;
       }
 
+      // Create simplified users list from profile data
       const combinedUsers: User[] = profilesData.map(profile => ({
         id: profile.user_id,
-        email: `user-${profile.user_id.slice(0, 8)}@empresa.com`, // Placeholder
+        email: `user-${profile.user_id.slice(0, 8)}@empresa.com`, // Placeholder since we can't access auth.users
         firstName: profile.first_name || '',
         lastName: profile.last_name || '',
         role: profile.role as 'admin' | 'collaborator',
@@ -101,26 +102,31 @@ export function UserSettings() {
   };
 
   const handleInviteUser = async () => {
-    const validation = teamInvitationSchema.safeParse(inviteForm);
-    if (!validation.success) {
+    if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim()) {
       toast({
-        title: "Campos inválidos",
-        description: validation.error.errors[0].message,
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha nome, sobrenome e email.",
         variant: "destructive",
       });
       return;
     }
 
-    setInviteLoading(true);
     try {
-      if (!currentUser?.id) throw new Error('Usuário não autenticado');
+      setInviteLoading(true);
+      
+      if (!currentUser || !currentUser.id) {
+        throw new Error('Usuário não autenticado');
+      }
 
-      // 1. Verificar disponibilidade do email
+      // Validate email availability using Supabase function
       const { data: emailCheck, error: emailCheckError } = await supabase.functions.invoke('check-email-availability', {
         body: { email: inviteForm.email }
       });
 
-      if (emailCheckError) throw new Error('Erro ao verificar disponibilidade do email');
+      if (emailCheckError) {
+        throw new Error('Erro ao verificar disponibilidade do email');
+      }
+
       if (!emailCheck.available) {
         toast({
           title: "Email já cadastrado",
@@ -130,21 +136,24 @@ export function UserSettings() {
         return;
       }
       
-      // 2. Criar convite no banco de dados
-      const { data: rpcData, error: rpcError } = await supabase
+      // Create team invitation
+      const { data, error } = await supabase
         .rpc('create_team_invitation', {
           p_email: inviteForm.email,
           p_first_name: inviteForm.firstName,
           p_last_name: inviteForm.lastName,
+          p_whatsapp_number: null
         });
 
-      if (rpcError) throw rpcError;
+      if (error) throw error;
 
-      const invitationToken = rpcData?.[0]?.invitation_token;
-      if (!invitationToken) throw new Error("Falha ao obter o token de convite.");
+      const invitationToken = data?.[0]?.invitation_token;
+      if (!invitationToken) {
+        throw new Error("Failed to get invitation token from RPC call.");
+      }
 
-      // 3. Enviar email de convite
-      const { error: emailError } = await supabase.functions.invoke('send-team-invitation', {
+      // Send invitation email via edge function
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-team-invitation', {
         body: {
           email: inviteForm.email,
           firstName: inviteForm.firstName,
@@ -155,24 +164,14 @@ export function UserSettings() {
       });
 
       if (emailError) {
-        console.error('Email sending error:', emailError);
+        console.error('Email error:', emailError);
         toast({
           title: "Aviso",
-          description: "Convite criado, mas houve um erro ao enviar o email. Verifique as configurações.",
+          description: "Convite criado mas houve erro ao enviar email. Verifique se a chave RESEND_API_KEY está configurada.",
           variant: "destructive"
         });
         return;
       }
-
-      // 4. Registrar log de auditoria
-      await supabase.rpc('create_audit_log', {
-        p_action_type: 'USER_INVITED',
-        p_new_data: { 
-          email: inviteForm.email,
-          name: `${inviteForm.firstName} ${inviteForm.lastName}`,
-          action: 'user_invitation_sent'
-        }
-      });
 
       toast({
         title: "Convite enviado!",
@@ -181,13 +180,14 @@ export function UserSettings() {
 
       setInviteForm({ firstName: "", lastName: "", email: "" });
       setShowInviteDialog(false);
+      
+      // Refresh users list
       await fetchUsers();
-
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating invitation:', error);
       toast({
         title: "Erro ao criar convite",
-        description: error.message || "Não foi possível criar o convite. Verifique suas permissões.",
+        description: "Não foi possível criar o convite. Verifique se você tem permissão de administrador.",
         variant: "destructive",
       });
     } finally {
@@ -332,7 +332,27 @@ export function UserSettings() {
                       Cancelar
                     </Button>
                     <Button 
-                      onClick={handleInviteUser}
+                      onClick={async () => {
+                        setInviteLoading(true);
+                        try {
+                          await handleInviteUser();
+                          // Log audit event
+                          try {
+                            await supabase.rpc('create_audit_log', {
+                              p_action_type: 'USER_INVITED',
+                              p_new_data: { 
+                                email: inviteForm.email,
+                                name: `${inviteForm.firstName} ${inviteForm.lastName}`,
+                                action: 'user_invitation_sent'
+                              }
+                            });
+                          } catch (auditError) {
+                            console.error('Audit log error:', auditError);
+                          }
+                        } finally {
+                          setInviteLoading(false);
+                        }
+                      }}
                       disabled={inviteLoading}
                       className="flex-1"
                     >
@@ -467,7 +487,27 @@ export function UserSettings() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                            onClick={async () => {
+                              try {
+                                await handleToggleUserStatus(user.id, user.isActive);
+                                // Log audit event
+                                try {
+                                  await supabase.rpc('create_audit_log', {
+                                    p_action_type: user.isActive ? 'USER_DEACTIVATED' : 'USER_ACTIVATED',
+                                    p_table_name: 'profiles',
+                                    p_record_id: user.id,
+                                    p_new_data: { 
+                                      user_name: `${user.firstName} ${user.lastName}`,
+                                      action: user.isActive ? 'deactivated' : 'activated'
+                                    }
+                                  });
+                                } catch (auditError) {
+                                  console.error('Audit log error:', auditError);
+                                }
+                              } catch (error) {
+                                console.error('Error toggling user status:', error);
+                              }
+                            }}
                             disabled={user.id === currentUser?.id}
                             className="h-8 w-8 p-0"
                             title={user.isActive ? "Desativar" : "Ativar"}

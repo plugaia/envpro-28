@@ -9,8 +9,6 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  userRole: 'admin' | 'collaborator' | null;
-  isAdmin: boolean;
   signUp: (email: string, password: string, userData: {
     firstName: string;
     lastName: string;
@@ -38,54 +36,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'admin' | 'collaborator' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-        if (error) {
-          console.error('Error fetching user role:', error);
-          setUserRole(null);
-        } else {
-          setUserRole(data.role);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+
+        if (event === 'SIGNED_IN') {
+          toast({
+            title: "Bem-vindo!",
+            description: "Login realizado com sucesso.",
+          });
         }
       }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
-    };
-
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-        if (error) {
-          console.error('Error fetching user role:', error);
-          setUserRole(null);
-        } else {
-          setUserRole(data.role);
-        }
-      } else {
-        setUserRole(null);
-      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [toast]);
 
   const signUp = async (email: string, password: string, userData: {
     firstName: string;
@@ -245,8 +223,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     loading,
-    userRole,
-    isAdmin: userRole === 'admin',
     signUp,
     signIn,
     signOut,

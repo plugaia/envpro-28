@@ -140,7 +140,6 @@ export type Database = {
           cnpj: string
           created_at: string
           id: string
-          logo_url: string | null
           name: string
           responsible_email: string
           responsible_phone: string
@@ -157,7 +156,6 @@ export type Database = {
           cnpj: string
           created_at?: string
           id?: string
-          logo_url?: string | null
           name: string
           responsible_email: string
           responsible_phone: string
@@ -174,7 +172,6 @@ export type Database = {
           cnpj?: string
           created_at?: string
           id?: string
-          logo_url?: string | null
           name?: string
           responsible_email?: string
           responsible_phone?: string
@@ -308,7 +305,6 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
-          custom_fields_data: Json | null
           description: string | null
           id: string
           organization_name: string | null
@@ -316,7 +312,6 @@ export type Database = {
           proposal_value: number
           receiver_type: string
           status: string
-          template_id: string | null
           updated_at: string
           valid_until: string
         }
@@ -327,7 +322,6 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
-          custom_fields_data?: Json | null
           description?: string | null
           id?: string
           organization_name?: string | null
@@ -335,7 +329,6 @@ export type Database = {
           proposal_value: number
           receiver_type: string
           status?: string
-          template_id?: string | null
           updated_at?: string
           valid_until: string
         }
@@ -346,7 +339,6 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
-          custom_fields_data?: Json | null
           description?: string | null
           id?: string
           organization_name?: string | null
@@ -354,7 +346,6 @@ export type Database = {
           proposal_value?: number
           receiver_type?: string
           status?: string
-          template_id?: string | null
           updated_at?: string
           valid_until?: string
         }
@@ -364,13 +355,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "proposals_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "proposal_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -461,91 +445,6 @@ export type Database = {
           },
         ]
       }
-      template_fields: {
-        Row: {
-          created_at: string
-          field_label: string
-          field_name: string
-          field_type: Database["public"]["Enums"]["template_field_type"]
-          id: string
-          is_required: boolean
-          order: number
-          template_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          field_label: string
-          field_name: string
-          field_type: Database["public"]["Enums"]["template_field_type"]
-          id?: string
-          is_required?: boolean
-          order?: number
-          template_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          field_label?: string
-          field_name?: string
-          field_type?: Database["public"]["Enums"]["template_field_type"]
-          id?: string
-          is_required?: boolean
-          order?: number
-          template_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "template_fields_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "proposal_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      proposal_templates: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          layout_config: Json | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          layout_config?: Json | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          layout_config?: Json | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "proposal_templates_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -575,21 +474,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_team_invitation:
-        | {
-            Args: {
-              p_invitation_token: string
-              p_user_id: string
-              p_phone?: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: { p_invitation_token: string; p_user_id: string }
-            Returns: boolean
-          }
+      accept_team_invitation: {
+        Args: { p_invitation_token: string; p_user_id: string }
+        Returns: boolean
+      }
       audit_sensitive_operation: {
-        Args: { p_operation_type: string; p_details?: Json }
+        Args: { p_details?: Json; p_operation_type: string }
         Returns: string
       }
       check_rate_limit: {
@@ -603,20 +493,20 @@ export type Database = {
       create_audit_log: {
         Args: {
           p_action_type: string
-          p_table_name?: string
-          p_record_id?: string
-          p_old_data?: Json
           p_new_data?: Json
+          p_old_data?: Json
+          p_record_id?: string
+          p_table_name?: string
         }
         Returns: string
       }
       create_notification: {
         Args: {
-          p_user_id: string
-          p_title: string
-          p_message: string
-          p_type?: string
           p_data?: Json
+          p_message: string
+          p_title: string
+          p_type?: string
+          p_user_id: string
         }
         Returns: string
       }
@@ -650,62 +540,61 @@ export type Database = {
       get_invitation_for_registration: {
         Args: { p_invitation_token: string }
         Returns: {
-          invitation_id: string
+          company_name: string
           email: string
           first_name: string
-          last_name: string
-          company_name: string
+          invitation_id: string
           is_valid: boolean
+          last_name: string
         }[]
       }
       get_lawyer_info: {
         Args: { p_proposal_id: string }
         Returns: {
+          avatar_url: string
+          email: string
           first_name: string
           last_name: string
-          avatar_url: string
           phone: string
-          email: string
         }[]
       }
       get_proposal_by_id: {
         Args: { p_proposal_id: string }
         Returns: {
-          id: string
-          client_name: string
-          client_email: string
-          client_phone: string
-          process_number: string
-          organization_name: string
-          cedible_value: number
-          proposal_value: number
-          valid_until: string
-          receiver_type: string
-          status: string
-          description: string
           assignee: string
-          created_by: string
+          can_view_client_details: boolean
+          cedible_value: number
+          client_email: string
+          client_name: string
+          client_phone: string
           company_id: string
           created_at: string
+          created_by: string
+          description: string
+          id: string
+          organization_name: string
+          process_number: string
+          proposal_value: number
+          receiver_type: string
+          status: string
           updated_at: string
-          can_view_client_details: boolean
+          valid_until: string
         }[]
       }
       get_proposal_by_token: {
         Args: { access_token: string }
         Returns: {
-          id: string
-          client_name: string
-          process_number: string
-          organization_name: string
           cedible_value: number
+          client_name: string
+          company_name: string
+          created_at: string
+          id: string
+          organization_name: string
+          process_number: string
           proposal_value: number
           receiver_type: string
           status: string
           valid_until: string
-          created_at: string
-          company_name: string
-          company_logo_url: string
         }[]
       }
       get_user_company_id: {
@@ -715,24 +604,24 @@ export type Database = {
       get_user_proposals: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          client_name: string
-          client_email: string
-          client_phone: string
-          process_number: string
-          organization_name: string
-          cedible_value: number
-          proposal_value: number
-          valid_until: string
-          receiver_type: string
-          status: string
-          description: string
           assignee: string
-          created_by: string
+          can_view_client_details: boolean
+          cedible_value: number
+          client_email: string
+          client_name: string
+          client_phone: string
           company_id: string
           created_at: string
+          created_by: string
+          description: string
+          id: string
+          organization_name: string
+          process_number: string
+          proposal_value: number
+          receiver_type: string
+          status: string
           updated_at: string
-          can_view_client_details: boolean
+          valid_until: string
         }[]
       }
       get_user_role: {
@@ -740,7 +629,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       has_role: {
-        Args: { _user_id: string; _role: Database["public"]["Enums"]["app_role"] }
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
         Returns: boolean
       }
       is_admin: {
@@ -760,13 +652,12 @@ export type Database = {
         Returns: boolean
       }
       verify_phone_digits: {
-        Args: { p_proposal_id: string; p_last_digits: string }
+        Args: { p_last_digits: string; p_proposal_id: string }
         Returns: boolean
       }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      template_field_type: "text" | "textarea" | "number" | "date"
       user_role: "admin" | "collaborator"
     }
     CompositeTypes: {
@@ -896,7 +787,6 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      template_field_type: ["text", "textarea", "number", "date"],
       user_role: ["admin", "collaborator"],
     },
   },
