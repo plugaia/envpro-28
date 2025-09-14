@@ -23,7 +23,7 @@ type TemplateField = Database['public']['Tables']['template_fields']['Row'];
 type TemplateWithFields = Template & { template_fields: TemplateField[] };
 
 const Templates = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [templates, setTemplates] = useState<TemplateWithFields[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +50,14 @@ const Templates = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to finish loading
+
     if (isAdmin) {
       fetchTemplates();
     } else {
       setLoading(false);
     }
-  }, [isAdmin, user]);
+  }, [isAdmin, user, authLoading]);
 
   const handleOpenDialog = (template: Partial<TemplateWithFields> | null) => {
     setEditingTemplate(template);
@@ -91,7 +93,7 @@ const Templates = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="flex items-center justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
   }
 

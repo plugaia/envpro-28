@@ -9,6 +9,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  userRole: 'admin' | 'collaborator' | null;
+  isAdmin: boolean;
   signUp: (email: string, password: string, userData: {
     firstName: string;
     lastName: string;
@@ -36,30 +38,52 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'admin' | 'collaborator' | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    const fetchUserRole = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
 
-        if (event === 'SIGNED_IN') {
-          toast({
-            title: "Bem-vindo!",
-            description: "Login realizado com sucesso.",
-          });
-        }
+        if (error) throw error;
+        setUserRole(data.role);
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setUserRole(null);
       }
-    );
+    };
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const handleAuthStateChange = async (event: string, session: Session | null) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        await fetchUserRole(currentUser.id);
+      } else {
+        setUserRole(null);
+      }
+      
       setLoading(false);
+
+      if (event === 'SIGNED_IN') {
+        toast({
+          title: "Bem-vindo!",
+          description: "Login realizado com sucesso.",
+        });
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      // Manually trigger the handler to check for an existing session on load.
+      handleAuthStateChange('INITIAL_SESSION', session);
     });
 
     return () => subscription.unsubscribe();
@@ -223,6 +247,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     user,
     session,
     loading,
+    userRole,
+    isAdmin: userRole === 'admin',
     signUp,
     signIn,
     signOut,
