@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0'
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts" // Updated Puppeteer version
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.2'
+import puppeteer from "https://deno.land/x/puppeteer@22.13.0/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
