@@ -42,48 +42,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchUserRole = async (userId: string) => {
-      try {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
-          .eq('user_id', userId)
+          .eq('user_id', session.user.id)
           .single();
-
-        if (error) throw error;
-        setUserRole(data.role);
-      } catch (error) {
-        console.error('Error fetching user role:', error);
-        setUserRole(null);
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setUserRole(null);
+        } else {
+          setUserRole(data.role);
+        }
       }
+      setLoading(false);
     };
 
-    const handleAuthStateChange = async (event: string, session: Session | null) => {
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      if (currentUser) {
-        await fetchUserRole(currentUser.id);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setUserRole(null);
+        } else {
+          setUserRole(data.role);
+        }
       } else {
         setUserRole(null);
       }
-      
-      setLoading(false);
-
-      if (event === 'SIGNED_IN') {
-        toast({
-          title: "Bem-vindo!",
-          description: "Login realizado com sucesso.",
-        });
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // Manually trigger the handler to check for an existing session on load.
-      handleAuthStateChange('INITIAL_SESSION', session);
     });
 
     return () => subscription.unsubscribe();
