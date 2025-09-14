@@ -22,7 +22,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 type Template = Database['public']['Tables']['proposal_templates']['Row'];
 type TemplateField = Database['public']['Tables']['template_fields']['Row'];
-type TemplateWithFields = Template & { template_fields: TemplateField[] };
+type VisualTemplate = Database['public']['Tables']['visual_templates']['Row'];
+type TemplateWithFields = Template & { template_fields: TemplateField[], visual_template_id: string | null };
 
 const Templates = () => {
   const { user, isAdmin, loading: authLoading } = useAuth();
@@ -206,8 +207,25 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
   const { toast } = useToast();
   const [name, setName] = useState(template?.name || "");
   const [description, setDescription] = useState(template?.description || "");
+  const [visualTemplateId, setVisualTemplateId] = useState(template?.visual_template_id || "");
+  const [visualTemplates, setVisualTemplates] = useState<VisualTemplate[]>([]);
   const [fields, setFields] = useState<Partial<TemplateField>[]>(template?.template_fields?.sort((a, b) => a.order - b.order) || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchVisualTemplates = async () => {
+      const { data, error } = await supabase.from('visual_templates').select('*');
+      if (error) {
+        toast({ title: "Erro ao carregar modelos visuais", variant: "destructive" });
+      } else {
+        setVisualTemplates(data);
+        if (!template?.visual_template_id && data.length > 0) {
+          setVisualTemplateId(data[0].id); // Default to first one
+        }
+      }
+    };
+    fetchVisualTemplates();
+  }, [template, toast]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -256,7 +274,7 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
+    if (!user || !visualTemplateId) return;
     if (!name) {
       toast({ title: "Erro de validação", description: "O nome do template é obrigatório.", variant: "destructive" });
       return;
@@ -275,6 +293,7 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
           name,
           description,
           created_by: user.id,
+          visual_template_id: visualTemplateId,
         })
         .select()
         .single();
@@ -317,9 +336,20 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
           <DialogTitle>{template ? "Editar Template" : "Novo Template"}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto p-1 pr-4 space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="template-name">Nome do Template</Label>
-            <Input id="template-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Proposta de Honorários" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Nome do Template</Label>
+              <Input id="template-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Proposta de Honorários" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="visual-template">Modelo de Visualização</Label>
+              <Select value={visualTemplateId} onValueChange={setVisualTemplateId}>
+                <SelectTrigger id="visual-template"><SelectValue placeholder="Selecione um modelo..." /></SelectTrigger>
+                <SelectContent>
+                  {visualTemplates.map(vt => <SelectItem key={vt.id} value={vt.id}>{vt.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="template-description">Texto Base da Proposta (Descrição)</Label>
