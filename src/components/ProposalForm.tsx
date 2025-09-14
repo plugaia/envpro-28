@@ -152,7 +152,11 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplateId(templateId);
+    if (templateId === "none") {
+      setSelectedTemplateId("");
+    } else {
+      setSelectedTemplateId(templateId);
+    }
     setCustomFieldsData({}); // Reset custom fields data when template changes
   };
 
@@ -466,7 +470,7 @@ export function ProposalForm({ onClose, onSubmit }: ProposalFormProps) {
                 <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
                   <SelectTrigger><SelectValue placeholder="Nenhum modelo selecionado" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {templates.map((template) => (
                       <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
                     ))}
