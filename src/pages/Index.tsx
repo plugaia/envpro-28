@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { type Proposal } from "@/components/ProposalCard";
 import { ProposalFilters, type FilterOptions } from "@/components/ProposalFilters";
 import { ProposalList } from "@/components/ProposalList";
+import { ProposalForm } from "@/components/ProposalForm";
 import { ProposalEditModal } from "@/components/ProposalEditModal";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +14,7 @@ const Index = () => {
   const { user } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -99,6 +101,7 @@ const Index = () => {
   const handleSubmitProposal = async () => {
     // Refresh proposals list after creating a new one
     await fetchProposals();
+    setIsFormOpen(false);
     
     // Create notification for new proposal
     if (user) {
@@ -393,6 +396,7 @@ Equipe EnvPRO 📋⚖️`
         <ProposalFilters
           filters={filters}
           onFiltersChange={setFilters}
+          onNewProposal={() => setIsFormOpen(true)}
           totalCount={proposals.length}
           filteredCount={filteredProposals.length}
         />
@@ -413,6 +417,13 @@ Equipe EnvPRO 📋⚖️`
           />
         )}
       </div>
+
+      {isFormOpen && (
+        <ProposalForm
+          onClose={() => setIsFormOpen(false)}
+          onSubmit={handleSubmitProposal}
+        />
+      )}
 
       {editingProposal && (
         <ProposalEditModal
