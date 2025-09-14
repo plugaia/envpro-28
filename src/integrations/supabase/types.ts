@@ -140,6 +140,7 @@ export type Database = {
           cnpj: string
           created_at: string
           id: string
+          logo_url: string | null
           name: string
           responsible_email: string
           responsible_phone: string
@@ -156,6 +157,7 @@ export type Database = {
           cnpj: string
           created_at?: string
           id?: string
+          logo_url?: string | null
           name: string
           responsible_email: string
           responsible_phone: string
@@ -172,6 +174,7 @@ export type Database = {
           cnpj?: string
           created_at?: string
           id?: string
+          logo_url?: string | null
           name?: string
           responsible_email?: string
           responsible_phone?: string
@@ -509,6 +512,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          layout_config: Json | null
           name: string
           updated_at: string
         }
@@ -518,6 +522,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          layout_config?: Json | null
           name: string
           updated_at?: string
         }
@@ -527,6 +532,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          layout_config?: Json | null
           name?: string
           updated_at?: string
         }
@@ -569,12 +575,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_team_invitation: {
-        Args: { p_invitation_token: string; p_user_id: string }
-        Returns: boolean
-      }
+      accept_team_invitation:
+        | {
+            Args: {
+              p_invitation_token: string
+              p_user_id: string
+              p_phone?: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: { p_invitation_token: string; p_user_id: string }
+            Returns: boolean
+          }
       audit_sensitive_operation: {
-        Args: { p_details?: Json; p_operation_type: string }
+        Args: { p_operation_type: string; p_details?: Json }
         Returns: string
       }
       check_rate_limit: {
@@ -588,20 +603,20 @@ export type Database = {
       create_audit_log: {
         Args: {
           p_action_type: string
-          p_new_data?: Json
-          p_old_data?: Json
-          p_record_id?: string
           p_table_name?: string
+          p_record_id?: string
+          p_old_data?: Json
+          p_new_data?: Json
         }
         Returns: string
       }
       create_notification: {
         Args: {
-          p_data?: Json
-          p_message: string
-          p_title: string
-          p_type?: string
           p_user_id: string
+          p_title: string
+          p_message: string
+          p_type?: string
+          p_data?: Json
         }
         Returns: string
       }
@@ -635,61 +650,62 @@ export type Database = {
       get_invitation_for_registration: {
         Args: { p_invitation_token: string }
         Returns: {
-          company_name: string
+          invitation_id: string
           email: string
           first_name: string
-          invitation_id: string
-          is_valid: boolean
           last_name: string
+          company_name: string
+          is_valid: boolean
         }[]
       }
       get_lawyer_info: {
         Args: { p_proposal_id: string }
         Returns: {
-          avatar_url: string
-          email: string
           first_name: string
           last_name: string
+          avatar_url: string
           phone: string
+          email: string
         }[]
       }
       get_proposal_by_id: {
         Args: { p_proposal_id: string }
         Returns: {
-          assignee: string
-          can_view_client_details: boolean
-          cedible_value: number
-          client_email: string
-          client_name: string
-          client_phone: string
-          company_id: string
-          created_at: string
-          created_by: string
-          description: string
           id: string
-          organization_name: string
+          client_name: string
+          client_email: string
+          client_phone: string
           process_number: string
+          organization_name: string
+          cedible_value: number
           proposal_value: number
+          valid_until: string
           receiver_type: string
           status: string
+          description: string
+          assignee: string
+          created_by: string
+          company_id: string
+          created_at: string
           updated_at: string
-          valid_until: string
+          can_view_client_details: boolean
         }[]
       }
       get_proposal_by_token: {
         Args: { access_token: string }
         Returns: {
-          cedible_value: number
-          client_name: string
-          company_name: string
-          created_at: string
           id: string
-          organization_name: string
+          client_name: string
           process_number: string
+          organization_name: string
+          cedible_value: number
           proposal_value: number
           receiver_type: string
           status: string
           valid_until: string
+          created_at: string
+          company_name: string
+          company_logo_url: string
         }[]
       }
       get_user_company_id: {
@@ -699,24 +715,24 @@ export type Database = {
       get_user_proposals: {
         Args: Record<PropertyKey, never>
         Returns: {
-          assignee: string
-          can_view_client_details: boolean
-          cedible_value: number
-          client_email: string
-          client_name: string
-          client_phone: string
-          company_id: string
-          created_at: string
-          created_by: string
-          description: string
           id: string
-          organization_name: string
+          client_name: string
+          client_email: string
+          client_phone: string
           process_number: string
+          organization_name: string
+          cedible_value: number
           proposal_value: number
+          valid_until: string
           receiver_type: string
           status: string
+          description: string
+          assignee: string
+          created_by: string
+          company_id: string
+          created_at: string
           updated_at: string
-          valid_until: string
+          can_view_client_details: boolean
         }[]
       }
       get_user_role: {
@@ -724,10 +740,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+        Args: { _user_id: string; _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
       is_admin: {
@@ -747,7 +760,7 @@ export type Database = {
         Returns: boolean
       }
       verify_phone_digits: {
-        Args: { p_last_digits: string; p_proposal_id: string }
+        Args: { p_proposal_id: string; p_last_digits: string }
         Returns: boolean
       }
     }
