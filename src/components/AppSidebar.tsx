@@ -1,10 +1,11 @@
-import { FileText, Plus, BarChart3, Settings, Users, Mail, Moon, Sun, Monitor, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Plus, BarChart3, Settings, Users, Mail, Moon, Sun, Monitor, ChevronLeft, ChevronRight, LayoutTemplate } from "lucide-react";
 const logoIcon = "/lovable-uploads/636d6934-d768-4999-a23b-9d1f4a733139.png";
 import { NavLink, useLocation } from "react-router-dom";
 import { useTheme } from "@/components/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+
 const items = [{
   title: "Propostas",
   url: "/",
@@ -18,10 +19,15 @@ const items = [{
   url: "/clientes",
   icon: Users
 }, {
+  title: "Templates",
+  url: "/templates",
+  icon: LayoutTemplate
+}, {
   title: "Configurações",
   url: "/configuracoes",
   icon: Settings
 }];
+
 export function AppSidebar() {
   const {
     state
@@ -72,7 +78,7 @@ export function AppSidebar() {
             <SidebarMenu className={`${collapsed ? "space-y-4 px-1" : "space-y-1 px-2"}`}>
               {items.map(item => <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className={`w-full justify-start hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground ${collapsed ? "h-12" : "h-10"}`}>
-                    <NavLink to={item.url} end className={({
+                    <NavLink to={item.url} end={item.url === "/"} className={({
                   isActive
                 }) => `flex items-center rounded-lg text-sm font-medium transition-colors ${collapsed ? "justify-center p-3.5 mx-1" : "gap-3 px-3 py-2"} ${isActive ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
                       <item.icon className="h-4 w-4 flex-shrink-0" />
