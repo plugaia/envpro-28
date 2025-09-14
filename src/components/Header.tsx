@@ -14,7 +14,7 @@ export function Header({ onNewProposal }: HeaderProps) {
   const { signOut } = useAuth();
   
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6">
+    <header className="sticky top-0 z-30 h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-2 md:gap-4">
         <SidebarTrigger className="p-2 hover:bg-accent hover:text-accent-foreground rounded-md transition-colors">
           {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}

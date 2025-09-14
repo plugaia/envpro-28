@@ -52,7 +52,7 @@ export function AppSidebar() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1">
               {!collapsed && <>
-                  
+                  <img src={logoIcon} alt="EnvPRO Icon" className="h-8 w-8" />
                   <div>
                     <h2 className="font-bold text-lg text-sidebar-foreground">EnvPRO</h2>
                     <p className="text-xs text-sidebar-foreground/70">Propostas Jurídicas</p>

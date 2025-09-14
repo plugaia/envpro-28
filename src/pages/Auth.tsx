@@ -65,8 +65,8 @@ const Auth = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar ao início
           </Link>
-          <div className="flex items-center justify-center mb-4">
-            <Building2 className="h-8 w-8 text-primary mr-2" />
+          <div className="flex items-center justify-center mb-4 gap-2">
+            <img src="/lovable-uploads/636d6934-d768-4999-a23b-9d1f4a733139.png" alt="EnvPRO Icon" className="h-8 w-8" />
             <h1 className="text-2xl font-bold text-foreground">EnvPRO</h1>
           </div>
           <p className="text-muted-foreground">
