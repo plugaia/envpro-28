@@ -14,6 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { type Database } from "@/integrations/supabase/types";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type Template = Database['public']['Tables']['proposal_templates']['Row'];
 type TemplateField = Database['public']['Tables']['template_fields']['Row'];
@@ -63,7 +66,6 @@ const Templates = () => {
     const newTemplateSeed: Partial<TemplateWithFields> = {
       ...templateToDuplicate,
       name: `${templateToDuplicate.name} (Cópia)`,
-      // Ensure fields are treated as new by removing their original IDs
       template_fields: templateToDuplicate.template_fields.map(f => {
         const newField: Partial<TemplateField> = { ...f };
         delete newField.id;
@@ -71,7 +73,6 @@ const Templates = () => {
         return newField;
       })
     };
-    // Remove the template ID to ensure it's created as a new entry
     delete newTemplateSeed.id;
     
     handleOpenDialog(newTemplateSeed);
@@ -149,7 +150,6 @@ const Templates = () => {
   );
 };
 
-// Helper function to generate a machine-readable name
 const generateFieldName = (label: string) => {
   return label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, '_');
 };
@@ -161,6 +161,42 @@ interface TemplateFormDialogProps {
   onSave: () => void;
 }
 
+const SortableFieldItem = ({ field, updateField, removeField }: { field: Partial<TemplateField>, updateField: (id: any, updatedField: Partial<TemplateField>) => void, removeField: (id: any) => void }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id! });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/50">
+      <GripVertical {...attributes} {...listeners} className="w-5 h-5 mt-8 text-muted-foreground cursor-grab" />
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label>Rótulo do Campo</Label>
+          <Input value={field.field_label} onChange={(e) => updateField(field.id!, { field_label: e.target.value })} placeholder="Ex: Valor da Causa" />
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo do Campo</Label>
+          <Select value={field.field_type} onValueChange={(value) => updateField(field.id!, { field_type: value as any })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="text">Texto Curto</SelectItem>
+              <SelectItem value="textarea">Texto Longo</SelectItem>
+              <SelectItem value="number">Número</SelectItem>
+              <SelectItem value="date">Data</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Obrigatório</Label>
+          <div className="flex items-center h-10">
+            <Switch checked={field.is_required} onCheckedChange={(checked) => updateField(field.id!, { is_required: checked })} />
+          </div>
+        </div>
+      </div>
+      <Button variant="ghost" size="icon" className="mt-6 text-destructive hover:text-destructive" onClick={() => removeField(field.id!)}><X className="w-4 h-4" /></Button>
+    </div>
+  );
+};
+
 const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -168,6 +204,11 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
   const [description, setDescription] = useState(template?.description || "");
   const [fields, setFields] = useState<Partial<TemplateField>[]>(template?.template_fields?.sort((a, b) => a.order - b.order) || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const addField = () => {
     const newField: Partial<TemplateField> = {
@@ -181,19 +222,33 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
     setFields([...fields, newField]);
   };
 
-  const updateField = (index: number, updatedField: Partial<TemplateField>) => {
-    const newFields = [...fields];
-    const oldLabel = newFields[index].field_label;
-    newFields[index] = { ...newFields[index], ...updatedField };
-    // Auto-generate field_name if label changes
-    if (updatedField.field_label !== undefined && updatedField.field_label !== oldLabel) {
-      newFields[index].field_name = generateFieldName(updatedField.field_label);
-    }
-    setFields(newFields);
+  const updateField = (id: any, updatedField: Partial<TemplateField>) => {
+    setFields(fields.map(f => {
+      if (f.id === id) {
+        const oldLabel = f.field_label;
+        const newField = { ...f, ...updatedField };
+        if (updatedField.field_label !== undefined && updatedField.field_label !== oldLabel) {
+          newField.field_name = generateFieldName(updatedField.field_label);
+        }
+        return newField;
+      }
+      return f;
+    }));
   };
 
-  const removeField = (index: number) => {
-    setFields(fields.filter((_, i) => i !== index));
+  const removeField = (id: any) => {
+    setFields(fields.filter((f) => f.id !== id));
+  };
+
+  const handleDragEnd = (event: { active: any; over: any; }) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setFields((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -208,7 +263,6 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
       const { data: profile } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).single();
       if (!profile) throw new Error("Perfil não encontrado.");
 
-      // Upsert template
       const { data: savedTemplate, error: templateError } = await supabase
         .from('proposal_templates')
         .upsert({
@@ -223,7 +277,6 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
       
       if (templateError) throw templateError;
 
-      // Process fields
       const fieldsToSave = fields.map((field, index) => ({
         id: field.id?.startsWith('new-') ? undefined : field.id,
         template_id: savedTemplate.id,
@@ -234,14 +287,12 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
         order: index,
       }));
 
-      // Delete fields that were removed
       const fieldsToDelete = template?.id && template.template_fields ? template.template_fields.filter(oldField => !fieldsToSave.some(newField => newField.id === oldField.id)).map(f => f.id) : [];
       if (fieldsToDelete && fieldsToDelete.length > 0) {
         const { error: deleteError } = await supabase.from('template_fields').delete().in('id', fieldsToDelete);
         if (deleteError) throw deleteError;
       }
 
-      // Upsert current fields
       const { error: fieldsError } = await supabase.from('template_fields').upsert(fieldsToSave);
       if (fieldsError) throw fieldsError;
 
@@ -273,36 +324,13 @@ const TemplateFormDialog = ({ isOpen, onClose, template, onSave }: TemplateFormD
           <div>
             <h3 className="font-medium mb-2">Campos Personalizados</h3>
             <div className="space-y-3">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/50">
-                  <GripVertical className="w-5 h-5 mt-8 text-muted-foreground cursor-grab" />
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Rótulo do Campo</Label>
-                      <Input value={field.field_label} onChange={(e) => updateField(index, { field_label: e.target.value })} placeholder="Ex: Valor da Causa" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Tipo do Campo</Label>
-                      <Select value={field.field_type} onValueChange={(value) => updateField(index, { field_type: value as any })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="text">Texto Curto</SelectItem>
-                          <SelectItem value="textarea">Texto Longo</SelectItem>
-                          <SelectItem value="number">Número</SelectItem>
-                          <SelectItem value="date">Data</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Obrigatório</Label>
-                      <div className="flex items-center h-10">
-                        <Switch checked={field.is_required} onCheckedChange={(checked) => updateField(index, { is_required: checked })} />
-                      </div>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="mt-6 text-destructive hover:text-destructive" onClick={() => removeField(index)}><X className="w-4 h-4" /></Button>
-                </div>
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={fields.map(f => f.id!)} strategy={verticalListSortingStrategy}>
+                  {fields.map((field) => (
+                    <SortableFieldItem key={field.id} field={field} updateField={updateField} removeField={removeField} />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <Button variant="outline" onClick={addField}><Plus className="w-4 h-4 mr-2" /> Adicionar Campo</Button>
             </div>
           </div>
