@@ -17,7 +17,7 @@ import Templates from "./pages/Templates";
 import TemplateDesigner from "./pages/TemplateDesigner";
 import NotFound from "./pages/NotFound";
 import TeamInvitation from "./pages/TeamInvitation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const queryClient = new QueryClient();
 
