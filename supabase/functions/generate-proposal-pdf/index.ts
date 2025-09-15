@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.2'
-import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts"
+import puppeteer from "https://deno.land/x/puppeteer@19.7.2/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +16,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let browser;
   try {
     console.log('PDF generation request received.');
     const { proposalId }: GeneratePDFRequest = await req.json();
@@ -161,27 +162,21 @@ serve(async (req) => {
     console.log('HTML content generated.');
 
     console.log('Launching browser for PDF generation...');
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-zygote',
-        '--single-process',
-        '--disable-infobars',
-        '--disable-extensions'
       ],
       headless: true,
     });
     console.log('Browser launched.');
     
     const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 15000 });
     console.log('Page content set.');
     
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
     console.log('PDF generated and browser closed. PDF size:', pdfBuffer.length);
     
     return new Response(pdfBuffer, {
@@ -195,5 +190,10 @@ serve(async (req) => {
       JSON.stringify({ error: 'Failed to generate PDF', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+  } finally {
+    if (browser) {
+      console.log('Closing browser.');
+      await browser.close();
+    }
   }
 });
