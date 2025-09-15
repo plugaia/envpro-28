@@ -12,105 +12,69 @@ interface GeneratePDFRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log('PDF generation request received.');
+    const { proposalId }: GeneratePDFRequest = await req.json();
+
+    if (!proposalId) {
+      throw new Error('Proposal ID is required');
+    }
+    console.log(`Initializing Supabase client for proposal ID: ${proposalId}`);
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    console.log('Supabase client initialized.');
 
-    const { proposalId }: GeneratePDFRequest = await req.json();
-
-    if (!proposalId) {
-      console.error('Error: Proposal ID is required.');
-      return new Response(
-        JSON.stringify({ error: 'Proposal ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
     console.log(`Fetching proposal data for ID: ${proposalId}`);
-
-    // Get proposal data (without sensitive contact info)
     const { data: proposal, error: proposalError } = await supabase
       .from('proposals')
       .select('*, companies(name, cnpj, logo_url)')
       .eq('id', proposalId)
       .single();
 
-    if (proposalError || !proposal) {
-      console.error('Proposal fetch error:', proposalError);
-      return new Response(
-        JSON.stringify({ error: 'Proposal not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    if (proposalError) throw new Error(`Proposal fetch error: ${proposalError.message}`);
+    if (!proposal) throw new Error('Proposal not found');
     console.log('Proposal data fetched successfully.');
 
-    // Get client contact data using secure function
+    console.log(`Fetching contact data for proposal ID: ${proposalId}`);
     const { data: contactData, error: contactError } = await supabase
       .rpc('get_client_contact', { p_proposal_id: proposalId });
 
-    if (contactError || !contactData || contactData.length === 0) {
-      console.error('Contact data fetch error:', contactError);
-      return new Response(
-        JSON.stringify({ error: 'Contact information not accessible or not found' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    console.log('Client contact data fetched successfully.');
+    if (contactError) throw new Error(`Contact data fetch error: ${contactError.message}`);
+    if (!contactData || contactData.length === 0) throw new Error('Contact information not accessible or not found');
     const clientContact = contactData[0];
+    console.log('Client contact data fetched successfully.');
 
-    // Get lawyer information (proposal creator)
-    const { data: lawyerData, error: lawyerError } = await supabase
-      .from('profiles')
-      .select('first_name, last_name, avatar_url, phone, user_id')
-      .eq('user_id', proposal.created_by)
-      .single();
+    let lawyerData = null, lawyerEmail = '';
+    if (proposal.created_by) {
+      console.log(`Fetching lawyer profile for user ID: ${proposal.created_by}`);
+      const { data: profileData, error: lawyerError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, avatar_url, phone')
+        .eq('user_id', proposal.created_by)
+        .single();
+      if (lawyerError) console.warn('Lawyer profile fetch warning:', lawyerError.message);
+      else lawyerData = profileData;
 
-    if (lawyerError) {
-      console.warn('Lawyer data fetch error:', lawyerError);
+      console.log(`Fetching lawyer auth data for user ID: ${proposal.created_by}`);
+      const { data: authData, error: lawyerAuthError } = await supabase.auth.admin.getUserById(proposal.created_by);
+      if (lawyerAuthError) console.warn('Lawyer auth fetch warning:', lawyerAuthError.message);
+      else lawyerEmail = authData.user?.email || '';
     }
-    console.log('Lawyer data fetched successfully (if available).');
-
-    // Get lawyer's auth data for email
-    const { data: lawyerAuth, error: lawyerAuthError } = await supabase.auth.admin.getUserById(
-      proposal.created_by || ''
-    );
-
-    if (lawyerAuthError) {
-      console.warn('Lawyer auth data fetch error:', lawyerAuthError);
-    }
-
-    // Use lawyer's individual phone or fallback to company phone
-    let lawyerPhone = lawyerData?.phone || proposal.companies?.responsible_phone || '';
-    let lawyerEmail = lawyerAuth?.user?.email || '';
 
     const companyName = proposal.companies?.name || 'Empresa';
     const companyCnpj = proposal.companies?.cnpj || '';
-    
-    const formatCurrency = (value: number) => {
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(value);
-    };
+    const lawyerPhone = lawyerData?.phone || '';
 
-    const formatDate = (date: string) => {
-      return new Intl.DateTimeFormat('pt-BR', {
-        day: '2-digit',
-        month: '2-digit', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(new Date(date));
-    };
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
 
-    // Generate HTML for PDF
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -145,14 +109,12 @@ serve(async (req) => {
           <h1>Proposta de Antecipação</h1>
           <p>Seu futuro está nas suas mãos! Antecipe seus créditos judiciais.</p>
         </div>
-
         <div class="section client-info">
           <h2>Dados do Cliente</h2>
           <p><strong>Nome:</strong> ${proposal.client_name}</p>
           <p><strong>Email:</strong> ${clientContact.email}</p>
           <p><strong>Telefone:</strong> ${clientContact.phone}</p>
         </div>
-
         ${proposal.process_number || proposal.organization_name ? `
         <div class="section process-details">
           <h3>Informações do Processo</h3>
@@ -161,7 +123,6 @@ serve(async (req) => {
           <p><strong>Tipo:</strong> ${proposal.receiver_type}</p>
         </div>
         ` : ''}
-
         <div class="section">
           <h3>Valores</h3>
           <div class="values-grid">
@@ -175,18 +136,8 @@ serve(async (req) => {
             </div>
           </div>
         </div>
-
-        ${proposal.description ? `
-        <div class="section">
-          <h3>Descrição</h3>
-          <p>${proposal.description}</p>
-        </div>
-        ` : ''}
-
-        <div class="disclaimer">
-          <strong>Aviso:</strong> A presente proposta não tem força pré-contratual, estando sujeita à aprovação da saúde fiscal do cedente e análise processual.
-        </div>
-
+        ${proposal.description ? `<div class="section"><h3>Descrição</h3><p>${proposal.description}</p></div>` : ''}
+        <div class="disclaimer"><strong>Aviso:</strong> A presente proposta não tem força pré-contratual, estando sujeita à aprovação da saúde fiscal do cedente e análise processual.</div>
         ${lawyerData ? `
         <div class="lawyer-info">
           <h3>Advogado Responsável</h3>
@@ -198,7 +149,6 @@ serve(async (req) => {
           </div>
         </div>
         ` : ''}
-
         <div class="footer">
           <p><strong>Empresa:</strong> ${companyName} ${companyCnpj ? `- CNPJ: ${companyCnpj}` : ''}</p>
           <p><strong>Data de Criação:</strong> ${formatDate(proposal.created_at)}</p>
@@ -210,7 +160,6 @@ serve(async (req) => {
     `;
     console.log('HTML content generated.');
 
-    // Generate PDF using Puppeteer
     console.log('Launching browser for PDF generation...');
     const browser = await puppeteer.launch({
       args: [
@@ -219,8 +168,11 @@ serve(async (req) => {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--no-zygote',
-        '--single-process'
-      ]
+        '--single-process',
+        '--disable-infobars',
+        '--disable-extensions'
+      ],
+      headless: true,
     });
     console.log('Browser launched.');
     
@@ -228,30 +180,13 @@ serve(async (req) => {
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     console.log('Page content set.');
     
-    // Generate PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
-    });
-    
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
     await browser.close();
+    console.log('PDF generated and browser closed. PDF size:', pdfBuffer.length);
     
-    console.log('PDF generated successfully, size:', pdfBuffer.length);
-    
-    // Return PDF as binary response
     return new Response(pdfBuffer, {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="proposta-${proposalId}.pdf"`
-      }
+      headers: { ...corsHeaders, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="proposta-${proposalId}.pdf"` }
     });
 
   } catch (error: any) {
