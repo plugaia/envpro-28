@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Mail, MessageCircle, Eye, MoreHorizontal, Calendar, DollarSign, Share, Download, Edit, Trash2 } from "lucide-react";
+import { Mail, MessageCircle, Eye, MoreHorizontal, Calendar, DollarSign, Share, Download, Edit, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -31,6 +31,7 @@ interface ProposalCardProps {
   onDelete: (proposal: Proposal) => void;
   onShareLink: (proposal: Proposal) => void;
   onDownloadPDF: (proposal: Proposal) => void;
+  isGeneratingPdf: string | null;
 }
 
 const statusColors = {
@@ -59,7 +60,8 @@ export function ProposalCard({
   onEdit, 
   onDelete,
   onShareLink,
-  onDownloadPDF
+  onDownloadPDF,
+  isGeneratingPdf
 }: ProposalCardProps) {
   
   const formatCurrency = (value: number) => {
@@ -170,8 +172,9 @@ export function ProposalCard({
               variant="outline"
               onClick={() => onDownloadPDF(proposal)}
               className="flex items-center gap-1"
+              disabled={isGeneratingPdf === proposal.id}
             >
-              <Download className="w-3 h-3" />
+              {isGeneratingPdf === proposal.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
               PDF
             </Button>
           </div>

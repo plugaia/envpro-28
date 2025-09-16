@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { ProposalForm } from "@/components/ProposalForm";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const { toast } = useToast();
@@ -17,6 +18,7 @@ const Index = () => {
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<Proposal | null>(null);
   const [showProposalForm, setShowProposalForm] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterOptions>({
     search: "",
     status: [],
@@ -269,6 +271,7 @@ Equipe EnvPRO 📋⚖️`
   };
 
   const handleDownloadPDF = async (proposal: Proposal) => {
+    setIsGeneratingPdf(proposal.id);
     try {
       const { data: responseData, error } = await supabase.functions.invoke('generate-proposal-pdf', {
         body: { proposalId: proposal.id }
@@ -307,9 +310,11 @@ Equipe EnvPRO 📋⚖️`
       console.error('Error generating PDF:', error);
       toast({
         title: "Erro ao gerar PDF",
-        description: `Não foi possível gerar o PDF. Erro: ${error.message}`,
+        description: `Não foi possível gerar o PDF. A tarefa pode ser muito longa para o servidor. Tente novamente mais tarde.`,
         variant: "destructive",
       });
+    } finally {
+      setIsGeneratingPdf(null);
     }
   };
 
@@ -469,6 +474,7 @@ Equipe EnvPRO 📋⚖️`
             onDelete={handleDeleteProposal}
             onShareLink={handleShareLink}
             onDownloadPDF={handleDownloadPDF}
+            isGeneratingPdf={isGeneratingPdf}
           />
         )}
       </div>

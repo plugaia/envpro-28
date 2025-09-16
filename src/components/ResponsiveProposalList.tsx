@@ -3,6 +3,7 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProposalCard, type Proposal } from "./ProposalCard";
 import { ProposalList } from "./ProposalList";
+import { Loader2 } from "lucide-react";
 
 interface ResponsiveProposalListProps {
   proposals: Proposal[];
@@ -13,6 +14,7 @@ interface ResponsiveProposalListProps {
   onDelete: (proposal: Proposal) => void;
   onShareLink: (proposal: Proposal) => void;
   onDownloadPDF: (proposal: Proposal) => void;
+  isGeneratingPdf: string | null;
 }
 
 export function ResponsiveProposalList(props: ResponsiveProposalListProps) {

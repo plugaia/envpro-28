@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Download, Edit, Trash2 } from "lucide-react";
+import { Mail, MessageCircle, Eye, Calendar, DollarSign, FileText, Share, Download, Edit, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Proposal } from "@/components/ProposalCard";
@@ -16,6 +16,7 @@ interface ProposalListProps {
   onDelete: (proposal: Proposal) => void;
   onShareLink: (proposal: Proposal) => void;
   onDownloadPDF: (proposal: Proposal) => void;
+  isGeneratingPdf: string | null;
 }
 
 const statusColors = {
@@ -44,7 +45,8 @@ export function ProposalList({
   onEdit, 
   onDelete,
   onShareLink,
-  onDownloadPDF
+  onDownloadPDF,
+  isGeneratingPdf
 }: ProposalListProps) {
   
   const formatCurrency = (value: number) => {
@@ -189,8 +191,9 @@ export function ProposalList({
                          onClick={() => onDownloadPDF(proposal)}
                          className="h-7 w-7 p-0"
                          title="Baixar PDF"
+                         disabled={isGeneratingPdf === proposal.id}
                        >
-                         <Download className="w-3 h-3" />
+                         {isGeneratingPdf === proposal.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
                        </Button>
                        <Button
                          size="sm"
