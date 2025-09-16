@@ -140,6 +140,7 @@ export type Database = {
           cnpj: string
           created_at: string
           id: string
+          logo_url: string | null
           name: string
           responsible_email: string
           responsible_phone: string
@@ -156,6 +157,7 @@ export type Database = {
           cnpj: string
           created_at?: string
           id?: string
+          logo_url?: string | null
           name: string
           responsible_email: string
           responsible_phone: string
@@ -172,6 +174,7 @@ export type Database = {
           cnpj?: string
           created_at?: string
           id?: string
+          logo_url?: string | null
           name?: string
           responsible_email?: string
           responsible_phone?: string
@@ -560,7 +563,11 @@ export type Database = {
     }
     Functions: {
       accept_team_invitation: {
-        Args: { p_invitation_token: string; p_user_id: string }
+        Args: {
+          p_invitation_token: string
+          p_user_id: string
+          p_phone?: string
+        }
         Returns: boolean
       }
       audit_sensitive_operation: {

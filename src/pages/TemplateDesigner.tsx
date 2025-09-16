@@ -108,7 +108,7 @@ export default function TemplateDesigner() {
 
     const { error } = await supabase
       .from('proposal_templates')
-      .update({ layout_config: blocks })
+      .update({ layout_config: blocks as any })
       .eq('id', template.id);
 
     if (error) {

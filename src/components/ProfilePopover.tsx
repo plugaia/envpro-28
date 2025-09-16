@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProfilePopoverProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ interface ProfilePopoverProps {
 
 export function ProfilePopover({ children, onSignOut }: ProfilePopoverProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   return (
     <Popover>
