@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } as AuthError
       };
     }
-    const redirectUrl = `http://localhost:8080/`;
+    const redirectUrl = import.meta.env.VITE_FRONTEND_URL || `http://localhost:8080/`;
     
     const { data, error } = await supabase.auth.signUp({
       email,

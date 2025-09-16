@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">envpro-28-main</string>
-    <string name="title_activity_main">envpro-28-main</string>
-    <string name="package_name">com.example.envpro28main</string>
-    <string name="custom_url_scheme">com.example.envpro28main</string>
+    <string name="app_name">Wonebank EnvPRO</string>
+    <string name="title_activity_main">Wonebank EnvPRO</string>
+    <string name="package_name">br.com.envpro.wonebank</string>
+    <string name="custom_url_scheme">br.com.envpro.wonebank</string>
 </resources>

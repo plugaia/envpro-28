@@ -59,8 +59,12 @@ serve(async (req) => {
     const companyName = profile.companies?.name || 'LegalProp';
     const inviterName = `${profile.first_name} ${profile.last_name}`;
     
-    // Use the correct invitation token for the registration URL
-    const registrationUrl = `http://localhost:8080/convite/${invitationToken}`;
+    const frontendUrl = Deno.env.get('FRONTEND_URL');
+    if (!frontendUrl) {
+      console.error('FATAL: FRONTEND_URL environment variable is not set.');
+      throw new Error('Application is not configured correctly. Missing FRONTEND_URL.');
+    }
+    const registrationUrl = `${frontendUrl}/convite/${invitationToken}`;
 
     // Send invitation email
     console.log('Attempting to send email with Resend...');

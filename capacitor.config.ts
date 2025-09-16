@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.example.envpro28main',
-  appName: 'envpro-28-main',
+  appId: 'br.com.envpro.wonebank',
+  appName: 'Wonebank EnvPRO',
   webDir: 'dist'
 };
 

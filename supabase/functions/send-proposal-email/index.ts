@@ -76,8 +76,11 @@ serve(async (req) => {
       );
     }
 
-    // Use hardcoded localhost URL for development
-    const frontendUrl = 'http://localhost:8080'; 
+    const frontendUrl = Deno.env.get('FRONTEND_URL');
+    if (!frontendUrl) {
+      console.error('FATAL: FRONTEND_URL environment variable is not set.');
+      throw new Error('Application is not configured correctly. Missing FRONTEND_URL.');
+    }
     const proposalUrl = `${frontendUrl}/proposta/${proposalId}?token=${tokenData}`;
     const companyName = proposal.companies?.name || 'Empresa';
     
