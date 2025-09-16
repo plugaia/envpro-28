@@ -28,7 +28,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Generate a secure, single-use access token for the proposal
     const { data: tokenData, error: tokenError } = await supabase
       .rpc('create_proposal_access_token', { p_proposal_id: proposalId });
     
@@ -37,12 +36,15 @@ serve(async (req) => {
     }
     const accessToken = tokenData;
 
-    // 2. Construct the full public URL to the proposal page
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
+    const frontendUrl = Deno.env.get('FRONTEND_URL');
+    if (!frontendUrl) {
+      console.error('FATAL: FRONTEND_URL environment variable is not set.');
+      throw new Error('Application is not configured correctly. Missing FRONTEND_URL.');
+    }
+    
     const proposalUrl = `${frontendUrl}/proposta/${proposalId}?token=${accessToken}`;
     console.log(`Navigating to URL for PDF generation: ${proposalUrl}`);
 
-    // 3. Launch Puppeteer
     browser = await puppeteer.launch({
       args: [
         '--no-sandbox',
@@ -54,16 +56,14 @@ serve(async (req) => {
     
     const page = await browser.newPage();
     
-    // 4. Navigate to the page and wait for it to be fully loaded
     await page.goto(proposalUrl, {
-      waitUntil: 'networkidle0', // Waits until there are no more network connections for at least 500 ms
-      timeout: 25000, // Increased timeout for potentially slow pages
+      waitUntil: 'networkidle0',
+      timeout: 25000,
     });
 
-    // Optional: Wait for a specific element to ensure rendering is complete
-    await page.waitForSelector('.card-elegant', { timeout: 10000 });
+    // Wait for the explicit signal from the React component that rendering is complete
+    await page.waitForSelector('body[data-render-complete="true"]', { timeout: 20000 });
 
-    // 5. Generate the PDF from the fully rendered page
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,

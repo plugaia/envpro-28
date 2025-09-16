@@ -38,6 +38,16 @@ const ProposalView = () => {
     }
   }, [proposalId, user, accessToken]);
 
+  useEffect(() => {
+    // Signal for PDF generation when rendering is complete
+    if (!loading && proposal) {
+      document.body.setAttribute('data-render-complete', 'true');
+    }
+    return () => {
+      document.body.removeAttribute('data-render-complete');
+    };
+  }, [loading, proposal]);
+
   const fetchProposal = async () => {
     try {
       setLoading(true);
